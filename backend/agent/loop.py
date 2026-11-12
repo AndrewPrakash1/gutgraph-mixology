@@ -75,9 +75,9 @@ async def run_agent_turn(agent: Dict, meal_name: str, metrics: Dict) -> AsyncIte
                 yield {"kind": "token", "delta": delta}
             source = llm.provider_name()
         except llm.LLMError as exc:
-            error = exc.as_dict()
+            error = {"provider": llm.provider_name(), **exc.as_dict()}
         except Exception as exc:  # noqa: BLE001 — one bad turn must not kill the run
-            error = {"message": f"{type(exc).__name__}: {exc}"}
+            error = {"provider": llm.provider_name(), "message": f"{type(exc).__name__}: {exc}"}
 
     reason = _tidy("".join(chunks))
     if not reason:
