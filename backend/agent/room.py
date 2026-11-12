@@ -23,7 +23,7 @@ still reads like a conversation.
 import asyncio
 from typing import AsyncIterator, Dict, List
 
-from .loop import run_agent_turn
+from .loop import AgentVote, render_mock_line, run_agent_turn
 
 # pacing for the demo — small enough that a full 8-agent run stays snappy
 WORD_DELAY_S = 0.014
@@ -70,13 +70,23 @@ class GutParliament:
                 else:
                     final = partial
 
+            if final is None:
+                # The turn yielded nothing at all. Never let that end the run.
+                concerned = agent["verdict"](metrics)
+                vote = "no" if concerned else "yes"
+                final = {
+                    "vote": AgentVote(agent=handle, vote=vote,
+                                      reason=render_mock_line(agent, vote, metrics)),
+                    "source": "template",
+                    "error": {"message": "agent turn produced no vote; used the persona template"},
+                }
+
             result = final["vote"]
 
             if final["error"]:
                 # Report it. The run continues on the template, but a bad key or
                 # an empty balance is now visible in the transcript and the logs.
-                yield {"event": "error", "agent": handle,
-                       "provider": self._provider_or_none(final["source"]), **final["error"]}
+                yield {"event": "error", "agent": handle, **final["error"]}
 
             if not streamed:
                 # Mock mode, or a live call that produced nothing: type it out.
@@ -92,7 +102,3 @@ class GutParliament:
                "yes": sum(1 for v in votes if v["vote"] == "yes"),
                "total": len(votes)}
         yield {"event": "sources", "sources": sorted({v["source"] for v in votes})}
-
-    @staticmethod
-    def _provider_or_none(source: str):
-        return None if source == "template" else source
