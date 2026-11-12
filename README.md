@@ -138,6 +138,33 @@ response = client.chat.completions.create(
 
 ---
 
+## Agent Parliament (grokbot-style interface)
+
+A chat interface where the Mixologist orchestrator convenes 8 microbe agents
+to vote on your meal, live over SSE. Open `frontend/agent.html` (served
+alongside the classic UI) and tell it what you ate.
+
+```
+backend/agent/
+  personas.py   # 8 agents: identity + verdict() truth-layer rule + mock voice
+  llm.py        # DeepSeek client; returns None without a key -> mock mode
+  loop.py       # one agent turn: verdict -> LLM/mock reason -> validate
+  room.py       # GutParliament: serial queue, shared MealContext, SSE events
+  pipeline.py   # Mixologist: parse -> gut_engine -> parliament -> drink
+```
+
+| Endpoint | Method | What |
+|---|---|---|
+| `/agents` | GET | Roster + mode (`live` if DeepSeek key set, else `mock`) |
+| `/chat/stream` | POST | SSE transcript: `agent_start`/`token`/`vote`/`tool`/`tally`/`result`/`done` |
+
+**Truth layer:** votes are computed by Python rules over `gut_engine` metrics —
+the LLM only words each agent's reason, it never invents numbers. With no
+`DEEPSEEK_API_KEY` the demo runs fully offline on persona templates.
+
+To go live: `export DEEPSEEK_API_KEY=...` and restart uvicorn (low-temperature
+`deepseek-chat`, JSON mode, one retry, silent fallback to mock on failure).
+
 ## Team
 
 - **Lakshay** — Backend (FastAPI, API integration)

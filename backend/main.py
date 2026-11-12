@@ -2,13 +2,19 @@
 GutGraph × Mixology — FastAPI Backend
 """
 
+import json
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict
 
 from gut_engine import compute_gut_score
 from demo_data import MEALS, MEAL_BY_ID, find_meal, MEAL_NAMES
+from agent import llm as agent_llm
+from agent.personas import roster
+from agent.pipeline import run_pipeline
 
 app = FastAPI(title="GutGraph Mixology", version="0.1.0")
 
@@ -39,6 +45,10 @@ class AnalyzeResponse(BaseModel):
     gaps: List[str]
     drink: Dict
     disclaimer: str = "This is a concept mockup. Gut scores are simulated, not medical advice."
+
+
+class ChatRequest(BaseModel):
+    message: str
 
 
 class PairRequest(BaseModel):
@@ -147,6 +157,39 @@ def pair_ingredient(ingredient: str):
         "ingredient": ingredient,
         "pairs": PAIRS.get(ingredient.lower(), []),
     }
+
+
+@app.get("/agents")
+def list_agents():
+    """Roster for the chat sidebar. `mode` tells the UI whether agent
+    reasons are LLM-worded (deepseek/openrouter) or template-worded (mock)."""
+    info = agent_llm.provider_info()
+    return {
+        "mode": info["mode"],
+        "provider": info["provider"],
+        "model": info["model"],
+        "agents": roster(),
+    }
+
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    """
+    Grokbot-style agent transcript over SSE (POST, so EventSource won't work —
+    read it with fetch + ReadableStream on the frontend).
+
+    Event sequence: agent_start/token* (Mixologist) -> meal -> tool
+    -> per-agent (agent_start, token*, vote) -> tally -> tool -> result -> done.
+    """
+    async def event_source():
+        async for ev in run_pipeline(req.message):
+            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/health")

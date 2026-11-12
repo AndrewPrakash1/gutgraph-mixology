@@ -88,7 +88,7 @@ MEALS: List[Dict] = [
         "name": "Idli + sambar + coffee",
         "emoji": "🍽️☕",
         "ingredients": [
-            {"name": "rice", "weight_g": 100, "fibre_g": 1.0, "sugar_g": 0.3},
+            {"name": "idli (fermented rice batter)", "weight_g": 100, "fibre_g": 1.0, "sugar_g": 0.3},
             {"name": "lentils", "weight_g": 80, "fibre_g": 8.0, "sugar_g": 1.5},
             {"name": "tamarind", "weight_g": 20, "fibre_g": 0.5, "sugar_g": 8.0},
             {"name": "mustard", "weight_g": 3, "fibre_g": 0.5, "sugar_g": 0.0},
