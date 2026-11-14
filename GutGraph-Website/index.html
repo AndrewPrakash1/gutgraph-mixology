@@ -719,8 +719,44 @@
   </div>
 
   <!-- ========================================== -->
+  <!-- SECTION: AGENT ROOM (in-site, full screen) -->
+  <!-- The grokbot-style parliament chat, wearing this site's theme. Opened
+       from the Gut-Agent Arena. Live data only: GET /agents, GET /meals,
+       POST /chat/stream. -->
+  <!-- ========================================== -->
+  <section id="agent-room" aria-hidden="true" aria-label="Agent Room">
+    <div class="ar-top">
+      <div>
+        <h2 class="ar-title">Agent Room</h2>
+        <div class="ar-sub">The gut parliament, one meal at a time</div>
+      </div>
+      <span class="ar-badge" id="ar-mode">connecting…</span>
+      <div class="row">
+        <button class="ar-btn" type="button" onclick="arReset()">Clear room</button>
+        <button class="ar-btn" type="button" onclick="closeAgentRoom()">Close</button>
+      </div>
+    </div>
+    <div class="ar-body">
+      <div class="ar-rail" id="ar-rail"></div>
+      <div class="ar-main">
+        <div class="ar-thread" id="ar-thread"><div class="ar-inner" id="ar-inner"></div></div>
+        <div class="ar-compose">
+          <form class="ar-form" id="ar-form" onsubmit="arSend(event)">
+            <input id="ar-input" type="text" placeholder="Tell the parliament what you ate…" autocomplete="off">
+            <button class="ar-btn accent" type="submit" id="ar-send">Send</button>
+          </form>
+          <div class="ar-meals" id="ar-meals"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================== -->
 
   <!-- External Clean JavaScript -->
   <script src="script.js"></script>
+
+  <!-- Agent Room: grokbot-style parliament chat -->
+  <script src="agent-room.js"></script>
 </body>
 </html>
