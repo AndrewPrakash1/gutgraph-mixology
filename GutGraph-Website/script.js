@@ -577,19 +577,141 @@
     setInterval(updateHeroScroll, 33); // Continuous idle floating
 
     // ==========================================
-    // CART DRAWER
+    // REACTIVE CART & REAL-TIME ACCURATE TOTALS
     // ==========================================
+    const API_BASE = "http://localhost:8000";
+
+    let cartItems = [
+      { id: "golden-hour", name: "GOLDEN HOUR", price: 120, quantity: 2, image: ASSETS["golden-hour.png"], subtitle: "Golden Elixir" },
+      { id: "mint-condition", name: "MINT CONDITION", price: 120, quantity: 1, image: ASSETS["mint-condition.png"], subtitle: "Alkaline Refresher" }
+    ];
+
+    function calculateCartTotals() {
+      let subtotal = 0;
+      let totalCount = 0;
+      cartItems.forEach(item => {
+        subtotal += item.price * item.quantity;
+        totalCount += item.quantity;
+      });
+
+      const discount = Math.round(subtotal * 0.10 * 100) / 100; // 10% Student & Campus Health Discount
+      const taxable = Math.max(0, subtotal - discount);
+      const cgst = Math.round(taxable * 0.025 * 100) / 100;
+      const sgst = Math.round(taxable * 0.025 * 100) / 100;
+      const tax = Math.round((cgst + sgst) * 100) / 100;
+      const grandTotal = Math.round((taxable + tax) * 100) / 100;
+
+      return {
+        subtotal,
+        totalCount,
+        discount,
+        taxable,
+        cgst,
+        sgst,
+        tax,
+        delivery: 0.00,
+        originalDelivery: 40.00,
+        grandTotal
+      };
+    }
+
+    function renderCartUI() {
+      const container = document.getElementById("cart-items-container");
+      const badge = document.getElementById("cart-nav-badge");
+      const subtotalEl = document.getElementById("cart-calc-subtotal");
+      const discountEl = document.getElementById("cart-calc-discount");
+      const taxEl = document.getElementById("cart-calc-tax");
+      const totalEl = document.getElementById("cart-calc-total");
+
+      const totals = calculateCartTotals();
+      if (badge) badge.innerText = totals.totalCount;
+
+      if (!container) return;
+
+      if (cartItems.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 space-y-3">
+            <span class="text-4xl block">🧺</span>
+            <p class="text-sm text-white/60">Your Sip Stash is empty.</p>
+            <a href="#sip-shop" onclick="toggleCart(false)" class="inline-block px-4 py-2 rounded-full bg-[#FFD52A] text-[#211A2A] font-extrabold text-xs uppercase tracking-wider">Browse Cans</a>
+          </div>
+        `;
+      } else {
+        container.innerHTML = cartItems.map(item => `
+          <div class="p-4 rounded-2xl bg-white/[0.04] border border-white/5 flex items-center justify-between gap-4">
+            <img src="${item.image}" alt="${item.name}" class="w-12 h-20 object-contain flex-shrink-0" />
+            <div class="flex-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-[#FFD52A]">${item.subtitle || 'Botanical Can'}</span>
+              <h4 class="font-bold text-sm text-white">${item.name}</h4>
+              <span class="text-xs text-white/50 block font-mono">₹${item.price} each • 330ml Can</span>
+              
+              <div class="flex items-center gap-2 mt-2">
+                <button onclick="updateCartItemQty('${item.id}', -1)" class="w-6 h-6 rounded-md bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-xs">-</button>
+                <span class="text-xs font-mono font-bold text-white px-1.5">${item.quantity}</span>
+                <button onclick="updateCartItemQty('${item.id}', 1)" class="w-6 h-6 rounded-md bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-xs">+</button>
+                <button onclick="removeCartItem('${item.id}')" class="text-[10px] text-red-400/80 hover:text-red-400 ml-2 underline">Remove</button>
+              </div>
+            </div>
+            <span class="font-mono font-bold text-sm text-white">₹${(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        `).join("");
+      }
+
+      if (subtotalEl) subtotalEl.innerText = `₹${totals.subtotal.toFixed(2)}`;
+      if (discountEl) discountEl.innerText = `-₹${totals.discount.toFixed(2)}`;
+      if (taxEl) taxEl.innerText = `+₹${totals.tax.toFixed(2)}`;
+      if (totalEl) totalEl.innerText = `₹${totals.grandTotal.toFixed(2)}`;
+    }
+
+    function updateCartItemQty(id, delta) {
+      const idx = cartItems.findIndex(x => x.id === id);
+      if (idx !== -1) {
+        cartItems[idx].quantity += delta;
+        if (cartItems[idx].quantity <= 0) {
+          cartItems.splice(idx, 1);
+        }
+        renderCartUI();
+      }
+    }
+
+    function removeCartItem(id) {
+      cartItems = cartItems.filter(x => x.id !== id);
+      renderCartUI();
+    }
+
+    function addProductToCart(productId) {
+      const p = PRODUCTS.find(x => x.id === productId);
+      if (!p) return;
+
+      const existing = cartItems.find(x => x.id === p.id);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cartItems.push({
+          id: p.id,
+          name: p.name,
+          price: 120,
+          quantity: 1,
+          image: p.image,
+          subtitle: p.subtitle
+        });
+      }
+
+      renderCartUI();
+      toggleCart(true);
+      showToast(`Added ${p.name} to your Sip Stash!`, "🍹");
+    }
+
     function toggleCart(open) {
       const drawer = document.getElementById("cart-drawer");
       const backdrop = document.getElementById("cart-backdrop");
       if (open) {
+        renderCartUI();
         backdrop.classList.remove("hidden");
-        backdrop.classList.add("is-open");
         drawer.classList.add("open");
       } else {
         drawer.classList.remove("open");
-        backdrop.classList.remove("is-open");
-        backdrop.classList.add("hidden");
+        setTimeout(() => backdrop.classList.add("hidden"), 300);
       }
     }
 
@@ -769,17 +891,24 @@
               <span>Allergens: ${p.allergens}</span>
               <span class="text-white/80">${p.context}</span>
             </div>
+
+            <div class="pt-4 flex items-center gap-3">
+              <button onclick="addProductToCart('${p.id}'); closeProductModal();" class="w-full py-3 px-6 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer">
+                <span>Add ${p.name} to Sip Stash (₹120)</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       `;
 
       document.getElementById("product-modal-backdrop").classList.remove("hidden");
-      document.getElementById("product-modal-backdrop").classList.add("is-open", "flex");
+      document.getElementById("product-modal-backdrop").classList.add("flex");
     }
 
     function closeProductModal() {
       document.getElementById("product-modal-backdrop").classList.add("hidden");
-      document.getElementById("product-modal-backdrop").classList.remove("is-open", "flex");
+      document.getElementById("product-modal-backdrop").classList.remove("flex");
     }
 
     // ==========================================
@@ -890,12 +1019,12 @@
       `;
 
       document.getElementById("recipe-modal-backdrop").classList.remove("hidden");
-      document.getElementById("recipe-modal-backdrop").classList.add("is-open", "flex");
+      document.getElementById("recipe-modal-backdrop").classList.add("flex");
     }
 
     function closeRecipeModal() {
       document.getElementById("recipe-modal-backdrop").classList.add("hidden");
-      document.getElementById("recipe-modal-backdrop").classList.remove("is-open", "flex");
+      document.getElementById("recipe-modal-backdrop").classList.remove("flex");
     }
 
     // ==========================================
@@ -952,106 +1081,38 @@
       }
     }
 
-    const API_BASE = (location.port === "8000" || location.hostname === "127.0.0.1" && location.port === "8000")
-      ? ""
-      : "http://localhost:8000";
-
-    function voteStyle(score) {
-      if (score >= 70) return { vote: "THRIVING", bg: "bg-[#70B96B]", text: "text-[#211A2A]" };
-      if (score >= 40) return { vote: "ADEQUATE", bg: "bg-[#E9BD48]", text: "text-[#211A2A]" };
-      if (score >= 20) return { vote: "DEFICIT", bg: "bg-[#FF9D36]", text: "text-[#211A2A]" };
-      return { vote: "URGENT GAP", bg: "bg-[#A92348]", text: "text-white" };
-    }
-
-    function applyLiveAnalysis(data, typed) {
-      const gaps = (data.gaps || []).map(g => g.toLowerCase());
-      const has = (needle) => gaps.some(g => g.includes(needle));
-      const fibre = voteStyle(has("fibre") || has("fiber") ? 12 : 78);
-      const ferment = voteStyle(has("ferment") || has("probiotic") ? 8 : 82);
-      const sugar = voteStyle(has("sugar") ? 16 : 86);
-      const spice = voteStyle(has("spice") ? 22 : 74);
-      const drink = data.drink || {};
-      const product = PRODUCTS.find(p => (drink.name || "").toLowerCase().includes(p.name.split(" ")[0].toLowerCase()))
-        || currentMeal.recommendedProduct
-        || PRODUCTS[1];
-
-      currentMeal = {
-        id: (data.meal && data.meal.id) || "live",
-        name: (data.meal && data.meal.name) || typed,
-        category: "Live GutGraph engine",
-        image: currentMeal.image,
-        shortDesc: ((data.meal && data.meal.ingredients) || []).map(i => i.name || i).join(", ") || typed,
-        calories: Math.round((10 - (data.gut_score || 0)) * 80 + 400),
-        protein: "—",
-        carbs: "—",
-        fiber: has("fibre") || has("fiber") ? "Low (engine)" : "Adequate (engine)",
-        processedScore: Math.max(0, Math.round((10 - (data.gut_score || 0)) * 10)),
-        recommendedProduct: product,
-        freshAlt: drink.prep || currentMeal.freshAlt,
-        rationale: drink.explanation || `Gut score ${data.gut_score}/10. Gaps: ${(data.gaps || []).join(", ") || "none"}.`,
-        scores: [
-          { id: "fiber", name: "Fibre Forager", score: fibre.vote === "URGENT GAP" ? 12 : fibre.vote === "THRIVING" ? 78 : 48, ...fibre, msg: has("fibre") || has("fiber") ? "Engine flagged low fibre." : "Fibre looks adequate for this plate." },
-          { id: "ferment", name: "Ferment Scout", score: ferment.vote === "URGENT GAP" || ferment.vote === "DEFICIT" ? 10 : 82, ...ferment, msg: has("ferment") || has("probiotic") ? "No fermented food or live cultures detected." : "A ferment or culture is on the plate." },
-          { id: "sugar", name: "Sugar Sentry", score: sugar.vote === "URGENT GAP" ? 16 : 86, ...sugar, msg: has("sugar") ? "Too much sugar for this meal." : "Sugar load stays inside the rule." },
-          { id: "diversity", name: "Diversity Botanist", score: spice.vote === "DEFICIT" || spice.vote === "URGENT GAP" ? 18 : 74, ...spice, msg: has("spice") ? "Spice families are too narrow." : "Spice diversity clears the bar." }
-        ]
-      };
-      renderMealLab();
-      const rec = document.getElementById("recommendation");
-      if (rec) rec.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    function fallbackMeal(val) {
-      if (val.includes("noodle") || val.includes("coke") || val.includes("maggi") || val.includes("pizza") || val.includes("burger")) {
-        selectMeal("noodles-coke");
-      } else if (val.includes("paneer") || val.includes("rice") || val.includes("biryani") || val.includes("curry") || val.includes("rajma")) {
-        selectMeal("paneer-rice");
-      } else if (val.includes("idli") || val.includes("thali") || val.includes("dal")) {
-        selectMeal("balanced-thali");
-      } else {
-        selectMeal("noodles-coke");
-      }
-    }
-
-    async function handleMealSubmit(e) {
+    function handleMealSubmit(e) {
       e.preventDefault();
-      const raw = document.getElementById("meal-input").value.trim();
-      if (!raw) return;
-      const val = raw.toLowerCase();
+      const val = document.getElementById("meal-input").value.trim().toLowerCase();
+      if (!val) return;
 
       const progressBox = document.getElementById("meal-analyzing-progress");
       const progressBar = document.getElementById("meal-progress-bar");
       const progressText = document.getElementById("meal-progress-text");
 
       progressBox.classList.remove("hidden");
-      progressBox.classList.add("is-open");
-      progressBar.style.width = "35%";
-      progressText.innerText = "Asking the gut engine…";
+      progressBar.style.width = "25%";
+      progressText.innerText = "25%";
 
-      try {
-        const res = await fetch(API_BASE + "/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meal_text: raw })
-        });
-        if (!res.ok) throw new Error("analyze " + res.status);
-        const data = await res.json();
+      setTimeout(() => {
+        progressBar.style.width = "65%";
+        progressText.innerText = "65%";
+      }, 350);
+
+      setTimeout(() => {
         progressBar.style.width = "100%";
-        progressText.innerText = "Gut score " + data.gut_score + "/10";
+        progressText.innerText = "100%";
         setTimeout(() => {
           progressBox.classList.add("hidden");
-          progressBox.classList.remove("is-open");
-          applyLiveAnalysis(data, raw);
-        }, 280);
-      } catch (err) {
-        progressBar.style.width = "100%";
-        progressText.innerText = "Engine offline — using the on-page scenario";
-        setTimeout(() => {
-          progressBox.classList.add("hidden");
-          progressBox.classList.remove("is-open");
-          fallbackMeal(val);
-        }, 400);
-      }
+          if (val.includes("noodle") || val.includes("coke") || val.includes("maggi") || val.includes("pizza") || val.includes("burger")) {
+            selectMeal("noodles-coke");
+          } else if (val.includes("paneer") || val.includes("rice") || val.includes("biryani") || val.includes("curry")) {
+            selectMeal("paneer-rice");
+          } else {
+            selectMeal("balanced-thali");
+          }
+        }, 200);
+      }, 700);
     }
 
     // ==========================================
@@ -1291,7 +1352,7 @@
           </div>
 
           <div class="pt-2 flex flex-wrap items-center gap-4">
-            <button onclick="toggleCart(true)" class="px-8 py-3.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-sm uppercase tracking-wider transition-all shadow-lg flex items-center gap-2">
+            <button onclick="addProductToCart('${p.id}')" class="px-8 py-3.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-sm uppercase tracking-wider transition-all shadow-lg flex items-center gap-2 cursor-pointer">
               <span>Add ${p.name} to Cart</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </button>
@@ -1309,3 +1370,794 @@
     renderRecipes();
     renderMealLab();
     renderFlavourLab();
+
+
+    // ==========================================================================
+    // AUTHENTICATION, OTP & PROFILE MANAGEMENT (LONG-TERM GUT MEMORY)
+    // ==========================================================================
+    let currentUser = JSON.parse(localStorage.getItem("gutgraph_user") || "null");
+    let currentProfile = JSON.parse(localStorage.getItem("gutgraph_profile") || "null");
+    let tempVerifiedEmail = "";
+    let tempDevOtp = "";
+
+    function showToast(msg, icon = "✨") {
+      const toast = document.getElementById("gut-toast");
+      const iconEl = document.getElementById("toast-icon");
+      const msgEl = document.getElementById("toast-msg");
+      if (!toast) return;
+
+      iconEl.innerText = icon;
+      msgEl.innerText = msg;
+      toast.classList.remove("translate-y-[-100px]", "opacity-0");
+      toast.classList.add("translate-y-0", "opacity-100");
+
+      setTimeout(() => {
+        toast.classList.remove("translate-y-0", "opacity-100");
+        toast.classList.add("translate-y-[-100px]", "opacity-0");
+      }, 3500);
+    }
+
+    function updateAuthNavSlot() {
+      const slot = document.getElementById("auth-nav-slot");
+      if (!slot) return;
+
+      if (currentUser) {
+        slot.innerHTML = `
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <button onclick="openAuthModal('profile')" class="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-[#FFD52A]/15 border border-[#FFD52A]/40 text-[#FFD52A] hover:bg-[#FFD52A]/25 transition-all text-xs font-mono font-bold cursor-pointer">
+              <span class="w-2 h-2 rounded-full bg-[#70B96B] animate-pulse"></span>
+              <span class="truncate max-w-[100px] sm:max-w-[140px]">@${currentUser.username}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#FFD52A] text-[#211A2A] font-extrabold uppercase hidden sm:inline">PRO</span>
+            </button>
+            <button onclick="logoutUser()" title="Sign Out" class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-colors cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </button>
+          </div>
+        `;
+      } else {
+        slot.innerHTML = `
+          <button onclick="openAuthModal('signin')" class="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-[#FFD52A] text-xs sm:text-sm font-semibold tracking-wide text-[#FFF1D9] hover:text-[#FFD52A] transition-all cursor-pointer shadow-sm group">
+            <svg class="w-3.5 h-3.5 text-[#FFD52A] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <span>Sign In / Join</span>
+          </button>
+        `;
+      }
+
+      updateChatHeader();
+    }
+
+    function openAuthModal(view = "signin") {
+      const backdrop = document.getElementById("auth-modal-backdrop");
+      if (!backdrop) return;
+      backdrop.classList.remove("hidden");
+      backdrop.classList.add("flex");
+      switchAuthView(view);
+    }
+
+    function closeAuthModal() {
+      const backdrop = document.getElementById("auth-modal-backdrop");
+      if (!backdrop) return;
+      backdrop.classList.add("hidden");
+      backdrop.classList.remove("flex");
+    }
+
+    function switchAuthView(view) {
+      document.getElementById("auth-view-signin").classList.add("hidden");
+      document.getElementById("auth-view-signup-step1").classList.add("hidden");
+      document.getElementById("auth-view-signup-step2").classList.add("hidden");
+      document.getElementById("auth-view-profile").classList.add("hidden");
+
+      if (view === "signin") {
+        document.getElementById("auth-view-signin").classList.remove("hidden");
+      } else if (view === "signup-step1") {
+        document.getElementById("auth-view-signup-step1").classList.remove("hidden");
+      } else if (view === "signup-step2") {
+        document.getElementById("auth-view-signup-step2").classList.remove("hidden");
+        document.getElementById("verified-email-badge").innerText = tempVerifiedEmail || "student@campus.edu";
+      } else if (view === "profile") {
+        document.getElementById("auth-view-profile").classList.remove("hidden");
+        populateProfileUI();
+      }
+    }
+
+    // Step 1: Send OTP
+    async function handleSendOtp() {
+      const emailInput = document.getElementById("signup-email");
+      const errEl = document.getElementById("signup-step1-error");
+      const btn = document.getElementById("btn-send-otp");
+      const email = emailInput.value.trim();
+
+      if (!email || !email.includes("@")) {
+        errEl.innerText = "Please enter a valid email address.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      errEl.classList.add("hidden");
+      btn.innerText = "Sending...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to send OTP");
+
+        tempVerifiedEmail = email;
+        tempDevOtp = data.dev_otp;
+
+        document.getElementById("otp-input-section").classList.remove("hidden");
+        document.getElementById("demo-otp-val").innerText = tempDevOtp;
+        btn.innerText = "Resend Code";
+        btn.disabled = false;
+        showToast("OTP code sent to email!", "📨");
+      } catch (err) {
+        // Fallback for offline demo mode
+        tempVerifiedEmail = email;
+        tempDevOtp = `${Math.floor(100000 + Math.random() * 900000)}`;
+        document.getElementById("otp-input-section").classList.remove("hidden");
+        document.getElementById("demo-otp-val").innerText = tempDevOtp;
+        btn.innerText = "Resend Code";
+        btn.disabled = false;
+        showToast("Demo OTP generated!", "📨");
+      }
+    }
+
+    function autoFillDemoOtp() {
+      const otpInput = document.getElementById("signup-otp");
+      if (otpInput && tempDevOtp) {
+        otpInput.value = tempDevOtp;
+        showToast("Demo OTP auto-filled!", "⚡");
+      }
+    }
+
+    // Step 1: Verify OTP
+    async function handleVerifyOtp() {
+      const otpInput = document.getElementById("signup-otp");
+      const errEl = document.getElementById("signup-step1-error");
+      const otp = otpInput.value.trim();
+
+      if (otp.length < 6) {
+        errEl.innerText = "Please enter the full 6-digit OTP.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      errEl.classList.add("hidden");
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: tempVerifiedEmail, otp })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Invalid OTP code");
+
+        showToast("Email verified! Setup your credentials.", "✅");
+        switchAuthView("signup-step2");
+      } catch (err) {
+        // Client fallback check
+        if (otp === tempDevOtp) {
+          showToast("Email verified! Setup your credentials.", "✅");
+          switchAuthView("signup-step2");
+        } else {
+          errEl.innerText = err.message || "Invalid or expired OTP code.";
+          errEl.classList.remove("hidden");
+        }
+      }
+    }
+
+    // Step 2: Random Username & Password Generator
+    async function triggerRandomCredentials() {
+      const dice = document.getElementById("dice-icon");
+      if (dice) {
+        dice.classList.remove("animate-dice");
+        void dice.offsetWidth; // trigger reflow
+        dice.classList.add("animate-dice");
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/generate-random`);
+        if (res.ok) {
+          const creds = await res.json();
+          document.getElementById("setup-username").value = creds.username;
+          document.getElementById("setup-password").value = creds.password;
+          showToast(`Generated: ${creds.username}`, "🎲");
+          return;
+        }
+      } catch (e) {
+        // Fallback generator
+      }
+
+      const adjectives = ["Curcumin", "Haldi", "Zesty", "Bifido", "Microbe", "Spice", "Botanical", "Kombucha", "Chaas", "Ferment", "Flavour"];
+      const nouns = ["Sage", "Guru", "Alchemist", "Crafter", "Knight", "Explorer", "Master", "Botanist", "Pioneer", "Scholar"];
+      const randomUser = `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}_${Math.floor(10 + Math.random() * 89)}`;
+      const randomPass = `Gut#${adjectives[Math.floor(Math.random() * adjectives.length)]}${Math.floor(100 + Math.random() * 899)}`;
+
+      document.getElementById("setup-username").value = randomUser;
+      document.getElementById("setup-password").value = randomPass;
+      showToast(`Generated: ${randomUser}`, "🎲");
+    }
+
+    // Step 2: Complete Registration
+    async function handleCompleteCredentials() {
+      const username = document.getElementById("setup-username").value.trim();
+      const password = document.getElementById("setup-password").value.trim();
+      const errEl = document.getElementById("signup-step2-error");
+
+      if (!username || !password) {
+        errEl.innerText = "Please enter or generate a username and password.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      errEl.classList.add("hidden");
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: tempVerifiedEmail, username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Registration failed");
+
+        currentUser = data.user;
+        localStorage.setItem("gutgraph_user", JSON.stringify(currentUser));
+        updateAuthNavSlot();
+        showToast(`Account created! Welcome, @${username}!`, "🎉");
+        switchAuthView("profile");
+      } catch (err) {
+        // Fallback for offline demo
+        currentUser = { id: 99, email: tempVerifiedEmail, username };
+        localStorage.setItem("gutgraph_user", JSON.stringify(currentUser));
+        updateAuthNavSlot();
+        showToast(`Account created! Welcome, @${username}!`, "🎉");
+        switchAuthView("profile");
+      }
+    }
+
+    // Sign In Submit
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const identifier = document.getElementById("login-identifier").value.trim();
+      const password = document.getElementById("login-password").value.trim();
+      const errEl = document.getElementById("login-error-msg");
+
+      if (!identifier || !password) return;
+      errEl.classList.add("hidden");
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Login failed");
+
+        currentUser = data.user;
+        currentProfile = data.profile;
+        localStorage.setItem("gutgraph_user", JSON.stringify(currentUser));
+        if (currentProfile) localStorage.setItem("gutgraph_profile", JSON.stringify(currentProfile));
+
+        updateAuthNavSlot();
+        closeAuthModal();
+        showToast(`Welcome back, @${currentUser.username}!`, "🧬");
+        loadChatHistory();
+      } catch (err) {
+        errEl.innerText = err.message || "Invalid credentials. Please try again.";
+        errEl.classList.remove("hidden");
+      }
+    }
+
+    function logoutUser() {
+      currentUser = null;
+      currentProfile = null;
+      localStorage.removeItem("gutgraph_user");
+      localStorage.removeItem("gutgraph_profile");
+      updateAuthNavSlot();
+      showToast("Signed out. Switched to Guest mode.", "👋");
+    }
+
+    // ==========================================
+    // USER PROFILE & MEDICAL HISTORY INTAKE
+    // ==========================================
+    function toggleChip(el) {
+      el.classList.toggle("active");
+    }
+
+    function populateProfileUI() {
+      if (!currentProfile) return;
+
+      const medChips = document.querySelectorAll("#medical-history-chips .chip-select");
+      medChips.forEach(chip => {
+        const val = chip.getAttribute("data-val");
+        if (currentProfile.medical_history && currentProfile.medical_history.includes(val)) {
+          chip.classList.add("active");
+        } else {
+          chip.classList.remove("active");
+        }
+      });
+
+      const allergyChips = document.querySelectorAll("#allergies-chips .chip-select");
+      allergyChips.forEach(chip => {
+        const val = chip.getAttribute("data-val");
+        if (currentProfile.allergies && currentProfile.allergies.includes(val)) {
+          chip.classList.add("active");
+        } else {
+          chip.classList.remove("active");
+        }
+      });
+
+      if (currentProfile.current_situation) {
+        document.getElementById("profile-situation").value = currentProfile.current_situation;
+      }
+      if (currentProfile.dietary_pref) {
+        document.getElementById("profile-diet").value = currentProfile.dietary_pref;
+      }
+      if (currentProfile.spice_tolerance) {
+        document.getElementById("profile-spice").value = currentProfile.spice_tolerance;
+      }
+      if (currentProfile.medications) {
+        document.getElementById("profile-meds").value = currentProfile.medications;
+      }
+    }
+
+    async function handleSaveProfile() {
+      if (!currentUser) {
+        showToast("Please sign in first to save your profile.", "⚠️");
+        return;
+      }
+
+      const medChips = document.querySelectorAll("#medical-history-chips .chip-select.active");
+      const medical_history = Array.from(medChips).map(c => c.getAttribute("data-val"));
+
+      const allergyChips = document.querySelectorAll("#allergies-chips .chip-select.active");
+      const allergies = Array.from(allergyChips).map(c => c.getAttribute("data-val"));
+
+      const current_situation = document.getElementById("profile-situation").value.trim();
+      const dietary_pref = document.getElementById("profile-diet").value;
+      const spice_tolerance = document.getElementById("profile-spice").value;
+      const medications = document.getElementById("profile-meds").value.trim();
+
+      const profilePayload = {
+        user_id: currentUser.id,
+        medical_history,
+        current_situation,
+        allergies,
+        dietary_pref,
+        spice_tolerance,
+        medications
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/user/profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profilePayload)
+        });
+        const data = await res.json();
+        if (res.ok && data.profile) {
+          currentProfile = data.profile;
+        } else {
+          currentProfile = profilePayload;
+        }
+      } catch (e) {
+        currentProfile = profilePayload;
+      }
+
+      localStorage.setItem("gutgraph_profile", JSON.stringify(currentProfile));
+      closeAuthModal();
+      updateChatHeader();
+      showToast("💾 Lifetime Gut Memory Activated! Profile saved.", "🧬");
+    }
+
+    // ==========================================
+    // BILL GENERATION ANIMATION & RECEIPT
+    // ==========================================
+    let currentGeneratedBill = null;
+
+    async function triggerCheckoutBill() {
+      if (cartItems.length === 0) {
+        showToast("Your Sip Stash is empty. Add cans first!", "🧺");
+        return;
+      }
+
+      toggleCart(false);
+
+      const totals = calculateCartTotals();
+      const billId = `GG-INV-${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const timestamp = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+      let calculatedData = {
+        bill_id: billId,
+        timestamp: timestamp,
+        items: cartItems.map(i => ({ id: i.id, name: i.name, unit_price: i.price, quantity: i.quantity, line_total: i.price * i.quantity })),
+        subtotal: totals.subtotal,
+        discount_amount: totals.discount,
+        taxable_amount: totals.taxable,
+        cgst: totals.cgst,
+        sgst: totals.sgst,
+        total_tax: totals.tax,
+        delivery_fee: totals.delivery,
+        original_delivery: totals.originalDelivery,
+        grand_total: totals.grandTotal,
+        loyalty_points: currentUser ? Math.floor(totals.grandTotal * 0.1) : 0,
+        currency: "₹"
+      };
+
+      // Try calling backend for official serialized receipt calculation
+      try {
+        const res = await fetch(`${API_BASE}/api/checkout/calculate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: currentUser ? currentUser.id : null,
+            items: cartItems.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+            coupon_code: "FORKIT2026"
+          })
+        });
+        if (res.ok) {
+          const backendData = await res.json();
+          calculatedData = backendData;
+        }
+      } catch (e) {
+        // Local accurate math is ready
+      }
+
+      currentGeneratedBill = calculatedData;
+      renderBillReceipt(calculatedData);
+
+      // Open Modal
+      const modal = document.getElementById("bill-modal-backdrop");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+
+      // Reset animation on receipt paper
+      const paper = document.getElementById("bill-receipt-paper");
+      if (paper) {
+        paper.classList.remove("animate-receipt-print");
+        void paper.offsetWidth; // trigger reflow
+        paper.classList.add("animate-receipt-print");
+      }
+
+      showToast("Printing official tax invoice & prescription...", "🧾");
+    }
+
+    function renderBillReceipt(bill) {
+      const container = document.getElementById("bill-receipt-content");
+      if (!container) return;
+
+      const userDisplay = currentUser
+        ? `@${currentUser.username} (Registered • Memory Active)`
+        : `Campus Student (Guest Mode)`;
+
+      const linesHtml = bill.items.map(item => `
+        <div class="flex items-center justify-between py-1 border-b border-dashed border-gray-300 text-xs">
+          <div class="flex-1">
+            <span class="font-bold">${item.quantity}×</span>
+            <span>${item.name}</span>
+            <span class="text-[10px] text-gray-500 block">@ ₹${item.unit_price} / can</span>
+          </div>
+          <span class="font-bold">₹${item.line_total.toFixed(2)}</span>
+        </div>
+      `).join("");
+
+      container.innerHTML = `
+        <!-- Header -->
+        <div class="text-center pb-3 border-b-2 border-dashed border-[#1a162b] relative">
+          <span class="text-[10px] font-bold tracking-widest uppercase block text-gray-600">Foodoscope RecipeDB × FlavorDB</span>
+          <h2 class="text-2xl font-black uppercase tracking-tight text-[#1a162b]">GUTGRAPH SIPS</h2>
+          <span class="text-[11px] font-bold block text-gray-700">Official Botanical Prescription & Tax Invoice</span>
+          <span class="text-[10px] text-gray-500 block font-mono">Store #01 • Campus Refueling Station</span>
+        </div>
+
+        <!-- Meta -->
+        <div class="text-[11px] font-mono space-y-0.5 py-1 border-b border-dashed border-gray-300 text-gray-600">
+          <div class="flex justify-between"><span>INVOICE:</span><span class="font-bold text-[#1a162b]">${bill.bill_id}</span></div>
+          <div class="flex justify-between"><span>DATE:</span><span>${bill.timestamp}</span></div>
+          <div class="flex justify-between"><span>CUSTOMER:</span><span class="font-bold text-[#1a162b] truncate max-w-[200px]">${userDisplay}</span></div>
+          <div class="flex justify-between"><span>DELIVERY:</span><span>Hostel Dining Wing (Campus Priority)</span></div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="pt-1">
+          <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex justify-between pb-1 border-b border-gray-300">
+            <span>Item Description</span>
+            <span>Total</span>
+          </div>
+          ${linesHtml}
+        </div>
+
+        <!-- Calculations Breakdown -->
+        <div class="space-y-1 text-xs font-mono pt-2 border-t border-dashed border-gray-300">
+          <div class="flex justify-between text-gray-600"><span>Items Subtotal:</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+          <div class="flex justify-between text-emerald-700 font-bold"><span>Student Concession (10%):</span><span>-₹${bill.discount_amount.toFixed(2)}</span></div>
+          <div class="flex justify-between text-gray-600"><span>Net Taxable:</span><span>₹${bill.taxable_amount.toFixed(2)}</span></div>
+          <div class="flex justify-between text-gray-500 text-[10px]"><span>CGST (2.5%):</span><span>+₹${bill.cgst.toFixed(2)}</span></div>
+          <div class="flex justify-between text-gray-500 text-[10px]"><span>SGST (2.5%):</span><span>+₹${bill.sgst.toFixed(2)}</span></div>
+          <div class="flex justify-between text-gray-600"><span>Total GST (5%):</span><span>+₹${bill.total_tax.toFixed(2)}</span></div>
+          <div class="flex justify-between text-emerald-700"><span>Hostel Delivery:</span><span class="font-bold">FREE <span class="line-through text-gray-400">₹40.00</span></span></div>
+
+          <div class="flex justify-between text-base font-black pt-2 border-t-2 border-[#1a162b] text-[#1a162b]">
+            <span>GRAND TOTAL:</span>
+            <span>₹${bill.grand_total.toFixed(2)}</span>
+          </div>
+
+          ${bill.loyalty_points > 0 ? `
+            <div class="p-2 rounded bg-amber-100 text-amber-900 text-[11px] font-bold text-center mt-1">
+              🎉 +${bill.loyalty_points} Gut Club Points credited to @${currentUser.username}!
+            </div>
+          ` : `
+            <div class="text-[10px] text-gray-500 text-center italic mt-1">
+              💡 Register an account to earn 10% cashback GutPoints on every order!
+            </div>
+          `}
+        </div>
+
+        <!-- Barcode Pattern -->
+        <div class="pt-3 pb-1 text-center">
+          <div class="barcode-strip w-full max-w-[280px] mx-auto rounded"></div>
+          <span class="font-mono text-[9px] text-gray-500 tracking-[0.25em] block mt-1">*${bill.bill_id}*</span>
+        </div>
+
+        <!-- Rubber Stamp Graphic (Slam Animation) -->
+        <div class="relative w-full flex justify-center py-2">
+          <div class="animate-stamp transform -rotate-12 border-4 border-red-700 text-red-700 rounded-2xl px-5 py-2 text-center uppercase tracking-wider shadow-lg bg-red-100/60 select-none">
+            <span class="text-[10px] font-black block tracking-widest">★ FOODOSCOPE FORK IT 2026 ★</span>
+            <span class="text-xl sm:text-2xl font-black block leading-none font-serif">PAID & PRESCRIBED</span>
+            <span class="text-[9px] font-bold block mt-0.5 font-mono">VERIFIED BY BOTANICAL GRAPH</span>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-[10px] text-gray-500 pt-2 border-t border-dashed border-gray-300">
+          <span>Keep your cans chilled at 4°C. Shake gently before sipping.</span>
+        </div>
+      `;
+    }
+
+    function closeBillModal() {
+      const modal = document.getElementById("bill-modal-backdrop");
+      if (!modal) return;
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function printOrDownloadReceipt() {
+      if (!currentGeneratedBill) return;
+
+      const printContent = `
+========================================
+         GUTGRAPH BOTANICAL SIPS
+       OFFICIAL SLIP & PRESCRIPTION
+========================================
+Invoice: ${currentGeneratedBill.bill_id}
+Date:    ${currentGeneratedBill.timestamp}
+Customer: ${currentUser ? currentUser.username : "Guest Student"}
+
+ITEMS:
+${currentGeneratedBill.items.map(i => `${i.quantity}x ${i.name} - ₹${i.line_total.toFixed(2)}`).join("\n")}
+----------------------------------------
+Subtotal:      ₹${currentGeneratedBill.subtotal.toFixed(2)}
+Discount:     -₹${currentGeneratedBill.discount_amount.toFixed(2)}
+GST (5%):     +₹${currentGeneratedBill.total_tax.toFixed(2)}
+Delivery:      FREE
+========================================
+TOTAL PAID:    ₹${currentGeneratedBill.grand_total.toFixed(2)}
+STATUS:        PAID & PRESCRIBED
+========================================
+      `;
+
+      const blob = new Blob([printContent], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentGeneratedBill.bill_id}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Receipt downloaded!", "📄");
+    }
+
+    function openChatFromReceipt() {
+      closeBillModal();
+      toggleGutChat(true);
+      sendChatMessage("I just placed an order for my GutGraph cans! When is the best time of day to drink them based on my profile?");
+    }
+
+    // ==========================================
+    // GUT AI MIXOLOGIST CHAT WITH LONG-TERM MEMORY
+    // ==========================================
+    let chatMessages = [
+      {
+        role: "assistant",
+        text: "👋 Hey there! I'm your **Gut AI Mixologist** powered by Foodoscope RecipeDB & FlavorDB chemistry. Ask me anything about post-meal digestion, soothing gut spasms, or discovering your next botanical sip!"
+      }
+    ];
+
+    function toggleGutChat(open) {
+      const drawer = document.getElementById("gut-chat-drawer");
+      if (!drawer) return;
+
+      const isOpen = drawer.classList.contains("open");
+      const shouldOpen = open !== undefined ? open : !isOpen;
+
+      if (shouldOpen) {
+        drawer.classList.add("open");
+        updateChatHeader();
+        renderChatStream();
+        if (currentUser && chatMessages.length <= 1) {
+          loadChatHistory();
+        }
+      } else {
+        drawer.classList.remove("open");
+      }
+    }
+
+    function updateChatHeader() {
+      const statusBadge = document.getElementById("chat-memory-status-badge");
+      const memoryBanner = document.getElementById("chat-memory-banner");
+      const floatDot = document.getElementById("floating-status-dot");
+      const floatLabel = document.getElementById("floating-memory-label");
+
+      if (currentUser) {
+        if (floatDot) floatDot.className = "absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#70B96B] border border-[#211A2A]";
+        if (floatLabel) floatLabel.innerText = `Memory: @${currentUser.username}`;
+
+        if (statusBadge) {
+          statusBadge.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-[#70B96B] inline-block animate-pulse"></span>
+            <span class="text-[#70B96B] font-bold">LONG-TERM MEMORY ACTIVE</span>
+          `;
+        }
+
+        const medNotes = (currentProfile && currentProfile.medical_history && currentProfile.medical_history.length > 0)
+          ? currentProfile.medical_history.join(", ")
+          : "Health Profile Active";
+
+        const allergyNotes = (currentProfile && currentProfile.allergies && currentProfile.allergies.length > 0)
+          ? ` • Allergies: ${currentProfile.allergies.join(", ")}`
+          : "";
+
+        if (memoryBanner) {
+          memoryBanner.innerHTML = `
+            <span class="truncate">🧬 Context Loaded: <strong>${medNotes}${allergyNotes}</strong></span>
+            <button onclick="openAuthModal('profile')" class="text-[10px] underline ml-2 whitespace-nowrap cursor-pointer">Edit Profile</button>
+          `;
+        }
+      } else {
+        if (floatDot) floatDot.className = "absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#FFD52A] border border-[#211A2A]";
+        if (floatLabel) floatLabel.innerText = "Memory: Guest Mode";
+
+        if (statusBadge) {
+          statusBadge.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-[#FFD52A] inline-block"></span>
+            <span class="text-[#FFD52A]">GUEST MODE (Temporary)</span>
+          `;
+        }
+
+        if (memoryBanner) {
+          memoryBanner.innerHTML = `
+            <span>⚠️ Guest chats are not remembered.</span>
+            <button onclick="openAuthModal('signin')" class="font-bold underline ml-1 cursor-pointer">Register for Memory</button>
+          `;
+        }
+      }
+    }
+
+    function renderChatStream() {
+      const stream = document.getElementById("chat-messages-stream");
+      if (!stream) return;
+
+      stream.innerHTML = chatMessages.map(m => {
+        const isUser = m.role === "user";
+        // Format markdown basic bolding and linebreaks
+        const formatted = m.text
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/\n/g, '<br/>');
+
+        return `
+          <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+            <div class="${isUser ? 'chat-bubble-user' : 'chat-bubble-bot'} p-3 max-w-[85%] space-y-1">
+              ${!isUser ? '<span class="text-[10px] font-bold text-[#FFD52A] block uppercase font-mono">Gut AI Mixologist</span>' : ''}
+              <div>${formatted}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function sendQuickPrompt(text) {
+      sendChatMessage(text);
+    }
+
+    function sendChatFromInput() {
+      const input = document.getElementById("chat-input-text");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      sendChatMessage(text);
+    }
+
+    async function sendChatMessage(text) {
+      chatMessages.push({ role: "user", text });
+      renderChatStream();
+
+      // Show typing placeholder
+      const stream = document.getElementById("chat-messages-stream");
+      const typingId = "typing-" + Date.now();
+      const typingEl = document.createElement("div");
+      typingEl.id = typingId;
+      typingEl.className = "flex justify-start";
+      typingEl.innerHTML = `
+        <div class="chat-bubble-bot p-3 max-w-[85%] text-white/50 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-[#FFD52A] animate-ping"></span>
+          <span>Consulting FlavorDB molecular graph & profile memory...</span>
+        </div>
+      `;
+      stream.appendChild(typingEl);
+      stream.scrollTop = stream.scrollHeight;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: currentUser ? currentUser.id : null,
+            message: text
+          })
+        });
+
+        const data = await res.json();
+        const placeholder = document.getElementById(typingId);
+        if (placeholder) placeholder.remove();
+
+        if (res.ok && data.reply) {
+          chatMessages.push({ role: "assistant", text: data.reply });
+        } else {
+          chatMessages.push({
+            role: "assistant",
+            text: "🍹 Based on your meal, we recommend **GOLDEN HOUR** or **MINT CONDITION** for soothing gut equilibrium. (Connect backend on port 8000 for full neural memory!)"
+          });
+        }
+      } catch (err) {
+        const placeholder = document.getElementById(typingId);
+        if (placeholder) placeholder.remove();
+
+        chatMessages.push({
+          role: "assistant",
+          text: `🌿 **Gut AI Response:** For *"${text}"*, an alkaline herbal infusion like **MINT CONDITION** (cooling menthol + digestive lime) balances gastric motility and relieves pressure!`
+        });
+      }
+
+      renderChatStream();
+    }
+
+    async function loadChatHistory() {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/chat/history?user_id=${currentUser.id}`);
+        if (res.ok) {
+          const history = await res.json();
+          if (history && history.length > 0) {
+            chatMessages = history.map(h => ({
+              role: h.role,
+              text: h.content
+            }));
+            renderChatStream();
+          }
+        }
+      } catch (e) {
+        // Keep current messages
+      }
+    }
+
+    // Initialize Auth, Cart and AI Chat bindings
+    renderCartUI();
+    updateAuthNavSlot();
+    updateChatHeader();

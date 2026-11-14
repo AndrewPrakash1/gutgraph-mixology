@@ -38,39 +38,43 @@
         </button>
       </div>
 
-      <div class="space-y-4">
-        <div class="p-4 rounded-2xl bg-white/[0.04] border border-white/5 flex items-center justify-between gap-4">
-          <img src="assets/products/golden-hour.png" alt="Golden Hour" class="w-12 h-20 object-contain flex-shrink-0" />
-          <div class="flex-1">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-[#FFD52A]">Golden Elixir</span>
-            <h4 class="font-bold text-sm text-white">GOLDEN HOUR</h4>
-            <span class="text-xs text-white/50 block font-mono">2 × ₹120 • 330ml Can</span>
-          </div>
-          <span class="font-mono font-bold text-sm text-white">₹240</span>
-        </div>
-
-        <div class="p-4 rounded-2xl bg-white/[0.04] border border-white/5 flex items-center justify-between gap-4">
-          <img src="assets/products/mint-condition.png" alt="Mint Condition" class="w-12 h-20 object-contain flex-shrink-0" />
-          <div class="flex-1">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-[#FFD52A]">Alkaline Refresher</span>
-            <h4 class="font-bold text-sm text-white">MINT CONDITION</h4>
-            <span class="text-xs text-white/50 block font-mono">1 × ₹120 • 330ml Can</span>
-          </div>
-          <span class="font-mono font-bold text-sm text-white">₹120</span>
-        </div>
+      <!-- Dynamic Cart Items Container -->
+      <div class="space-y-4" id="cart-items-container">
+        <!-- Rendered via JS -->
       </div>
     </div>
 
     <div class="pt-6 border-t border-white/10 space-y-4">
-      <div class="flex items-center justify-between text-sm">
-        <span class="text-white/60">Estimated Total:</span>
-        <span class="font-mono text-xl font-bold text-[#FFD52A]">₹360</span>
+      <!-- Accurate Calculations Breakdown -->
+      <div class="space-y-1.5 text-xs font-mono">
+        <div class="flex items-center justify-between text-white/70">
+          <span>Items Subtotal:</span>
+          <span class="font-bold text-white" id="cart-calc-subtotal">₹360.00</span>
+        </div>
+        <div class="flex items-center justify-between text-[#70B96B]">
+          <span>Student Discount (10%):</span>
+          <span class="font-bold" id="cart-calc-discount">-₹36.00</span>
+        </div>
+        <div class="flex items-center justify-between text-white/70">
+          <span>Taxes (5% GST):</span>
+          <span class="text-white" id="cart-calc-tax">+₹16.20</span>
+        </div>
+        <div class="flex items-center justify-between text-white/70">
+          <span>Campus Hostel Delivery:</span>
+          <span class="text-[#70B96B] font-bold">FREE <span class="line-through text-white/40 text-[10px]">₹40.00</span></span>
+        </div>
       </div>
-      <button onclick="alert('Starter Pack checkout integration will be active in Round 2!')" class="w-full py-4 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95">
+
+      <div class="flex items-center justify-between text-sm pt-2 border-t border-white/10">
+        <span class="text-white/80 font-bold uppercase tracking-wider text-xs">Estimated Grand Total:</span>
+        <span class="font-mono text-2xl font-black text-[#FFD52A]" id="cart-calc-total">₹340.20</span>
+      </div>
+
+      <button onclick="triggerCheckoutBill()" class="w-full py-4 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer">
         <span>Proceed to Sip Checkout</span>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
       </button>
-      <p class="text-[11px] text-center text-white/40">Free student campus delivery on starter 6-packs across selected hostels.</p>
+      <p class="text-[11px] text-center text-white/40 font-mono">⚡ Generates official serialized tax invoice & microbial prescription</p>
     </div>
   </div>
 
@@ -93,15 +97,17 @@
         <img src="assets/brush-left.png" alt="Artistic brush stroke" class="w-full h-full object-contain object-left" />
       </div>
 
-      <!-- Navbar: Exact Visual Reference -->
-      <header class="relative z-40 w-full px-6 sm:px-12 md:px-16 pt-6 sm:pt-8 flex items-center justify-between text-[#FFF1D9]">
-        <nav class="flex items-center">
-          <a href="#about" class="text-base sm:text-lg md:text-xl font-medium tracking-wide hover:text-[#FFD52A] transition-colors">About</a>
+      <!-- Navbar: Exact Visual Reference with Top-Right Auth Pill -->
+      <header class="relative z-40 w-full px-4 sm:px-10 md:px-16 pt-5 sm:pt-8 flex items-center justify-between text-[#FFF1D9]">
+        <nav class="flex items-center gap-4 sm:gap-6">
+          <a href="#about" class="text-sm sm:text-base md:text-lg font-medium tracking-wide hover:text-[#FFD52A] transition-colors">About</a>
+          <a href="#meal-lab" class="hidden sm:inline-block text-sm sm:text-base md:text-lg font-medium tracking-wide hover:text-[#FFD52A] transition-colors">Meal Lab</a>
+          <a href="#sip-shop" class="hidden md:inline-block text-sm sm:text-base md:text-lg font-medium tracking-wide hover:text-[#FFD52A] transition-colors">Shop</a>
         </nav>
 
         <!-- Circular Stamp Logo -->
         <div class="flex items-center justify-center">
-          <div class="relative w-16 h-16 sm:w-20 sm:h-20 cursor-pointer select-none flex items-center justify-center hover:scale-105 transition-transform">
+          <div class="relative w-14 h-14 sm:w-20 sm:h-20 cursor-pointer select-none flex items-center justify-center hover:scale-105 transition-transform">
             <svg viewBox="0 0 100 100" class="w-full h-full animate-spin-slow">
               <defs>
                 <path id="circlePath" d="M 50, 50 m -35, 0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0" />
@@ -111,7 +117,7 @@
               </text>
             </svg>
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-[#FFF1D9]">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-[#FFF1D9]">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M8 14s1.5 2 4 2 4-2 4-2" />
                 <line x1="9" y1="9" x2="9.01" y2="9" />
@@ -121,9 +127,19 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-end">
-          <button onclick="toggleCart(true)" class="text-base sm:text-lg md:text-xl font-medium tracking-wide hover:text-[#FFD52A] transition-colors cursor-pointer">
-            Cart
+        <div class="flex items-center justify-end gap-2.5 sm:gap-4">
+          <!-- Small Register & Login Option on Top Right Corner -->
+          <div id="auth-nav-slot">
+            <button onclick="openAuthModal('signin')" class="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-[#FFD52A] text-xs sm:text-sm font-semibold tracking-wide text-[#FFF1D9] hover:text-[#FFD52A] transition-all cursor-pointer shadow-sm group">
+              <svg class="w-3.5 h-3.5 text-[#FFD52A] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              <span>Sign In / Join</span>
+            </button>
+          </div>
+
+          <!-- Cart button with dynamic badge -->
+          <button onclick="toggleCart(true)" class="relative text-sm sm:text-base md:text-lg font-medium tracking-wide hover:text-[#FFD52A] transition-colors cursor-pointer flex items-center gap-1.5">
+            <span>Cart</span>
+            <span id="cart-nav-badge" class="px-2 py-0.5 text-[11px] font-mono font-bold bg-[#FFD52A] text-[#211A2A] rounded-full">3</span>
           </button>
         </div>
       </header>
@@ -716,6 +732,328 @@
         <!-- Rendered via JS -->
       </div>
     </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- BILL GENERATION ANIMATION MODAL -->
+  <!-- ========================================== -->
+  <div id="bill-modal-backdrop" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4 sm:p-6 overflow-y-auto" onclick="closeBillModal()">
+    <div class="relative w-full max-w-md my-auto" onclick="event.stopPropagation()">
+      <!-- Receipt Slot Dispenser (register slot) -->
+      <div class="w-44 h-3 mx-auto bg-[#0a0022] border-2 border-white/20 rounded-t-lg shadow-inner"></div>
+
+      <!-- Thermal Paper Receipt Container -->
+      <div id="bill-receipt-paper" class="receipt-paper animate-receipt-print rounded-lg p-6 sm:p-7 text-[#1a162b] shadow-2xl relative select-none">
+        <div class="receipt-jagged-top"></div>
+
+        <!-- Receipt Content -->
+        <div id="bill-receipt-content" class="space-y-4">
+          <!-- Rendered via JS for accurate dynamic calculations -->
+        </div>
+
+        <div class="receipt-jagged-bottom"></div>
+      </div>
+
+      <!-- Action Buttons below receipt -->
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <button onclick="printOrDownloadReceipt()" class="px-5 py-2.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg transition-transform active:scale-95 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span>Print / Save Receipt</span>
+        </button>
+        <button onclick="openChatFromReceipt()" class="px-4 py-2.5 rounded-full bg-[#321078] hover:bg-[#431899] text-[#FFD52A] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer border border-[#FFD52A]/30">
+          <span>💬 Ask Gut AI</span>
+        </button>
+        <button onclick="closeBillModal()" class="px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs uppercase tracking-wider transition-colors cursor-pointer">
+          Close Slip
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- AUTH & USER PROFILE MODAL (DOODLISH ROUGH STYLE) -->
+  <!-- ========================================== -->
+  <div id="auth-modal-backdrop" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4 sm:p-6 overflow-y-auto" onclick="closeAuthModal()">
+    <div id="auth-modal-card" class="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#1d0944] border-2 border-dashed border-[#FFD52A]/50 text-[#FFF1D9] shadow-2xl p-6 sm:p-8 z-10 doodle-card" onclick="event.stopPropagation()">
+      <button onclick="closeAuthModal()" class="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <!-- VIEW 1: SIGN IN -->
+      <div id="auth-view-signin" class="space-y-6">
+        <div class="text-center space-y-1">
+          <span class="text-xs font-mono font-bold tracking-widest text-[#FFD52A] uppercase">✦ GutGraph Microbiome Passport ✦</span>
+          <h3 class="font-gutgraph text-4xl sm:text-5xl uppercase tracking-tight text-white">Sign In</h3>
+          <p class="text-xs text-white/70">Access your saved medical profile, allergies, and lifelong conversation memory.</p>
+        </div>
+
+        <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-white/70 mb-1">Email or Username</label>
+            <input type="text" id="login-identifier" required placeholder="e.g. CurcuminExplorer_84 or student@campus.edu" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-sm font-sans" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-white/70 mb-1">Password</label>
+            <input type="password" id="login-password" required placeholder="Enter your password" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-sm font-sans" />
+          </div>
+
+          <div id="login-error-msg" class="text-xs text-red-400 hidden p-2.5 rounded-lg bg-red-950/40 border border-red-500/30"></div>
+
+          <button type="submit" class="w-full py-3.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-98 cursor-pointer">
+            Sign In & Unlock Memory
+          </button>
+        </form>
+
+        <div class="pt-4 border-t border-white/10 text-center">
+          <p class="text-xs text-white/60">
+            Don't have an account yet? 
+            <button onclick="switchAuthView('signup-step1')" class="font-bold text-[#FFD52A] hover:underline cursor-pointer">Register with Email OTP →</button>
+          </p>
+        </div>
+      </div>
+
+      <!-- VIEW 2: REGISTER STEP 1 (EMAIL + OTP) -->
+      <div id="auth-view-signup-step1" class="space-y-6 hidden">
+        <div class="text-center space-y-1">
+          <span class="text-xs font-mono font-bold tracking-widest text-[#70B96B] uppercase">Step 01 of 03 • Email Verification</span>
+          <h3 class="font-gutgraph text-4xl sm:text-5xl uppercase tracking-tight text-white">Create Account</h3>
+          <p class="text-xs text-white/70">Verify your student/personal email to activate lifelong gut memory.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-white/70 mb-1">Your Email Address</label>
+            <div class="flex gap-2">
+              <input type="email" id="signup-email" required placeholder="e.g. riya.sharma@campus.edu" class="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-sm" />
+              <button type="button" onclick="handleSendOtp()" id="btn-send-otp" class="px-5 py-3 rounded-xl bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-xs uppercase tracking-wider whitespace-nowrap transition-all shadow-sm active:scale-95 cursor-pointer">
+                Send OTP
+              </button>
+            </div>
+          </div>
+
+          <!-- OTP Input Area (Appears after sending) -->
+          <div id="otp-input-section" class="hidden space-y-3 pt-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-[#FFD52A]">Enter 6-Digit OTP</label>
+            <input type="text" id="signup-otp" maxlength="6" placeholder="• • • • • •" class="w-full text-center tracking-[0.5em] font-mono text-2xl px-4 py-3 rounded-xl bg-white/10 border-2 border-[#FFD52A]/60 text-white placeholder-white/20 focus:outline-none focus:border-[#FFD52A]" />
+            
+            <!-- Campus Demo Auto-fill Banner -->
+            <div id="otp-demo-hint" class="p-3 rounded-xl bg-[#70B96B]/15 border border-[#70B96B]/30 flex items-center justify-between text-xs text-[#70B96B]">
+              <span>⚡ Demo OTP: <strong id="demo-otp-val" class="font-mono text-sm underline cursor-pointer" onclick="autoFillDemoOtp()"></strong></span>
+              <button type="button" onclick="autoFillDemoOtp()" class="px-2.5 py-1 rounded-md bg-[#70B96B] text-[#120033] font-bold text-[10px] uppercase">Auto-Fill</button>
+            </div>
+
+            <button type="button" onclick="handleVerifyOtp()" class="w-full py-3.5 rounded-full bg-[#70B96B] hover:bg-[#8fd88a] text-[#120033] font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-98 cursor-pointer">
+              Verify Code & Continue →
+            </button>
+          </div>
+
+          <div id="signup-step1-error" class="text-xs text-red-400 hidden p-2.5 rounded-lg bg-red-950/40 border border-red-500/30"></div>
+        </div>
+
+        <div class="pt-4 border-t border-white/10 text-center">
+          <p class="text-xs text-white/60">
+            Already registered? 
+            <button onclick="switchAuthView('signin')" class="font-bold text-[#FFD52A] hover:underline cursor-pointer">Sign In instead →</button>
+          </p>
+        </div>
+      </div>
+
+      <!-- VIEW 3: REGISTER STEP 2 (USERNAME & PASSWORD SETUP + RANDOM GENERATION) -->
+      <div id="auth-view-signup-step2" class="space-y-6 hidden">
+        <div class="text-center space-y-1">
+          <span class="text-xs font-mono font-bold tracking-widest text-[#FFD52A] uppercase">Step 02 of 03 • Setup Credentials</span>
+          <h3 class="font-gutgraph text-4xl sm:text-5xl uppercase tracking-tight text-white">Choose Identity</h3>
+          <p class="text-xs text-[#70B96B] font-mono">✓ Verified: <span id="verified-email-badge"></span></p>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Random Generator Callout Feature -->
+          <div class="p-4 rounded-2xl bg-[#FFD52A]/10 border border-[#FFD52A]/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-left">
+              <span class="text-xs font-bold text-[#FFD52A] block uppercase">Don't want to think of one?</span>
+              <span class="text-[11px] text-white/70">Generate an instant science & botanical username + strong password!</span>
+            </div>
+            <button type="button" onclick="triggerRandomCredentials()" class="flex-shrink-0 px-4 py-2.5 rounded-xl bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer">
+              <span id="dice-icon" class="text-sm">🎲</span>
+              <span>Generate Random</span>
+            </button>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-white/70 mb-1">Choose Username</label>
+            <input type="text" id="setup-username" required placeholder="e.g. SpiceSage_42" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-sm font-mono" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-white/70 mb-1">Set Password</label>
+            <input type="text" id="setup-password" required placeholder="Create or view generated password" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-sm font-mono" />
+          </div>
+
+          <div id="signup-step2-error" class="text-xs text-red-400 hidden p-2.5 rounded-lg bg-red-950/40 border border-red-500/30"></div>
+
+          <button type="button" onclick="handleCompleteCredentials()" class="w-full py-3.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-98 cursor-pointer">
+            Save & Proceed to Medical Profile →
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 4: REGISTER STEP 3 / PROFILE MODAL (MEDICAL HISTORY, ALLERGIES, CONTEXT) -->
+      <div id="auth-view-profile" class="space-y-6 hidden">
+        <div class="text-center space-y-1">
+          <span class="text-xs font-mono font-bold tracking-widest text-[#F5A6CB] uppercase">Step 03 of 03 • Long-Term Gut Memory</span>
+          <h3 class="font-gutgraph text-3xl sm:text-4xl uppercase tracking-tight text-white">Gut Health & Medical Profile</h3>
+          <p class="text-xs text-white/75 max-w-md mx-auto">
+            Our AI Gut Mixologist fetches this context before every single conversation so recommendations strictly avoid your allergies and target your health goals!
+          </p>
+        </div>
+
+        <div class="space-y-5 text-left text-xs">
+          <!-- 1. Medical History / Conditions -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-[#FFD52A] mb-2">1. Medical Conditions / Sensitivities</label>
+            <div class="flex flex-wrap gap-2" id="medical-history-chips">
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Acid Reflux / GERD" onclick="toggleChip(this)">Acid Reflux / GERD</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="IBS (Irritable Bowel)" onclick="toggleChip(this)">IBS (Irritable Bowel)</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Lactose Intolerance" onclick="toggleChip(this)">Lactose Intolerance</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Celiac / Gluten Sensitivity" onclick="toggleChip(this)">Celiac / Gluten Sensitivity</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Gastritis" onclick="toggleChip(this)">Gastritis</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Type 2 Diabetes" onclick="toggleChip(this)">Type 2 Diabetes</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="None / Healthy" onclick="toggleChip(this)">None / Healthy</span>
+            </div>
+          </div>
+
+          <!-- 2. Current Situation -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-[#FFD52A] mb-1">2. Today's Situation / Recent Gut Feeling</label>
+            <textarea id="profile-situation" rows="2" placeholder="e.g. Just ate oily campus canteen chole bhature, feeling bloated and heartburn..." class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-xs"></textarea>
+          </div>
+
+          <!-- 3. Allergies -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-[#FFD52A] mb-2">3. Known Food Allergies</label>
+            <div class="flex flex-wrap gap-2" id="allergies-chips">
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Dairy / Milk" onclick="toggleChip(this)">Dairy / Milk</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Peanuts" onclick="toggleChip(this)">Peanuts</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Tree Nuts" onclick="toggleChip(this)">Tree Nuts</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Gluten" onclick="toggleChip(this)">Gluten</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Soy" onclick="toggleChip(this)">Soy</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="Artificial Sweeteners" onclick="toggleChip(this)">Artificial Sweeteners</span>
+              <span class="chip-select px-3 py-1.5 rounded-full bg-white/5 border border-white/15" data-val="No Allergies" onclick="toggleChip(this)">No Allergies</span>
+            </div>
+          </div>
+
+          <!-- 4. Dietary Preference & Spice Tolerance -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold uppercase tracking-wider text-white/70 mb-1">Dietary Preference</label>
+              <select id="profile-diet" class="w-full px-3 py-2 rounded-xl bg-[#2b1068] border border-white/15 text-white text-xs focus:outline-none focus:border-[#FFD52A]">
+                <option value="Vegetarian">Vegetarian</option>
+                <option value="Vegan">Vegan</option>
+                <option value="Jain (No Root Veg)">Jain (No Root Veg)</option>
+                <option value="Eggetarian">Eggetarian</option>
+                <option value="Omnivore">Omnivore</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold uppercase tracking-wider text-white/70 mb-1">Spice Tolerance</label>
+              <select id="profile-spice" class="w-full px-3 py-2 rounded-xl bg-[#2b1068] border border-white/15 text-white text-xs focus:outline-none focus:border-[#FFD52A]">
+                <option value="Mild Spices Only">Mild Spices Only</option>
+                <option value="Medium Balanced" selected>Medium Balanced</option>
+                <option value="High Spice Fan">High Spice Fan</option>
+                <option value="Extreme Subcontinental">Extreme Subcontinental</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 5. Medications / Notes -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-white/70 mb-1">Current Supplements / Medications (Optional)</label>
+            <input type="text" id="profile-meds" placeholder="e.g. Antacids, Vitamin D3, Probiotic pills, none" class="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 focus:outline-none focus:border-[#FFD52A] text-xs" />
+          </div>
+
+          <div id="profile-error-msg" class="text-xs text-red-400 hidden p-2.5 rounded-lg bg-red-950/40 border border-red-500/30"></div>
+
+          <div class="pt-2 flex flex-wrap items-center gap-3">
+            <button type="button" onclick="handleSaveProfile()" class="flex-1 py-3.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Save Profile & Activate Long-Term Memory</span>
+            </button>
+            <button type="button" onclick="closeAuthModal()" class="px-5 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase cursor-pointer">
+              Skip for now
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- FLOATING AI GUT MIXOLOGIST CHAT WIDGET -->
+  <!-- ========================================== -->
+  <div id="gut-chat-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <!-- Chat Drawer Dialog -->
+    <div id="gut-chat-drawer" class="w-[92vw] sm:w-[420px] h-[550px] max-h-[80vh] rounded-3xl bg-[#1d0944] border-2 border-[#FFD52A]/40 shadow-2xl flex flex-col overflow-hidden mb-3 doodle-card">
+      <!-- Drawer Header -->
+      <div class="p-4 bg-[#14003d] border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full bg-[#FFD52A] text-[#211A2A] flex items-center justify-center font-bold text-sm shadow">
+            🍹
+          </div>
+          <div>
+            <h4 class="font-gutgraph text-xl uppercase tracking-wider text-white">Gut AI Mixologist</h4>
+            <div id="chat-memory-status-badge" class="flex items-center gap-1.5 text-[10px] font-mono">
+              <!-- Rendered via JS: Shows active memory or guest mode -->
+            </div>
+          </div>
+        </div>
+        <button onclick="toggleGutChat(false)" class="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Memory Context Callout Banner -->
+      <div id="chat-memory-banner" class="px-4 py-2 bg-[#FFD52A]/10 border-b border-[#FFD52A]/20 text-[11px] text-[#FFD52A] flex items-center justify-between">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Chat Messages Scroll Container -->
+      <div id="chat-messages-stream" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs leading-relaxed">
+        <!-- Stream rendered via JS -->
+      </div>
+
+      <!-- Quick Prompt Suggestions Chips -->
+      <div class="px-4 py-2 bg-black/20 border-t border-white/5 flex gap-1.5 overflow-x-auto no-scrollbar">
+        <button onclick="sendQuickPrompt('What should I drink after heavy noodles?')" class="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 text-[10px] text-white/80 border border-white/10">🍜 Post-Noodles</button>
+        <button onclick="sendQuickPrompt('I have acid reflux today, what helps?')" class="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 text-[10px] text-white/80 border border-white/10">🔥 Acidity Relief</button>
+        <button onclick="sendQuickPrompt('Suggest a dairy-free prebiotic spritz')" class="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 text-[10px] text-white/80 border border-white/10">🥛 Dairy-Free</button>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="p-3 bg-[#14003d] border-t border-white/10 flex items-center gap-2">
+        <input type="text" id="chat-input-text" placeholder="Ask about drinks, gut recovery, spices..." onkeypress="if(event.key==='Enter')sendChatFromInput()" class="flex-1 px-4 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-white/30 text-xs focus:outline-none focus:border-[#FFD52A]" />
+        <button onclick="sendChatFromInput()" class="p-2.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] text-[#211A2A] font-bold shadow-md transition-transform active:scale-95 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Floating Trigger Pill Button -->
+    <button id="gut-ai-floating-btn" onclick="toggleGutChat()" class="px-4 py-3 rounded-full bg-[#321078] hover:bg-[#431899] border-2 border-[#FFD52A] text-white shadow-2xl flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 cursor-pointer select-none">
+      <div class="relative w-7 h-7 rounded-full bg-[#FFD52A] text-[#211A2A] flex items-center justify-center font-bold text-sm">
+        <span>🤖</span>
+        <span id="floating-status-dot" class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#70B96B] border border-[#211A2A] animate-ping"></span>
+      </div>
+      <div class="text-left">
+        <span class="font-gutgraph text-base uppercase tracking-wider block text-white leading-none">Ask Gut AI</span>
+        <span id="floating-memory-label" class="text-[10px] text-[#FFD52A] font-mono block font-bold leading-none mt-0.5">Memory: Guest</span>
+      </div>
+    </button>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="gut-toast" class="fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 pointer-events-none px-4 py-3 rounded-2xl bg-[#FFD52A] text-[#211A2A] font-bold text-xs shadow-2xl flex items-center gap-2 border border-white/20">
+    <span id="toast-icon">✨</span>
+    <span id="toast-msg">Notification</span>
   </div>
 
   <!-- ========================================== -->

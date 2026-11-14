@@ -27,6 +27,7 @@ from foodoscope_service import (
     normalize_pairings,
     recipe_by_title,
 )
+from api_store import router as account_router
 
 ALLOWED_FOODOSCOPE = re.compile(r"^(recipe2-api|flavordb|cocktaildb)/")
 
@@ -42,6 +43,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Account / profile / checkout / chat routes must be registered BEFORE the
+# FoodoScope catch-all below, which owns every other path under /api/.
+app.include_router(account_router)
 
 
 class AnalyzeRequest(BaseModel):

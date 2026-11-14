@@ -231,6 +231,58 @@ async def stream_reason(
         raise LLMError(f"{cfg['provider']} unreachable: {type(exc).__name__}: {exc}") from exc
 
 
+async def complete(
+    messages: List[Dict[str, str]],
+    max_tokens: Optional[int] = None,
+    temperature: float = 0.6,
+) -> str:
+    """
+    One non-streaming call, for callers that want a whole answer at once (the chat
+    box in the site). Same provider selection and the same rule as stream_reason:
+    only message.content is the answer, reasoning_content is never returned.
+
+    Raises LLMError on no provider, HTTP error, network failure, or an empty answer.
+    """
+    cfg = provider()
+    if cfg is None:
+        raise LLMError("no provider configured (set COMMANDCODE_API_KEY, DEEPSEEK_API_KEY or OPENROUTER_API_KEY)")
+
+    payload = {
+        "model": cfg["model"],
+        "messages": messages,
+        "stream": False,
+        "temperature": temperature,
+        "max_tokens": int(max_tokens if max_tokens is not None
+                          else os.environ.get("LLM_CHAT_MAX_TOKENS", "700")),
+    }
+    headers = {
+        "Authorization": f"Bearer {cfg['key']}",
+        "Content-Type": "application/json",
+    }
+    headers.update(cfg["extra_headers"])
+    # a chat answer is longer than a one-line agent vote, so it gets its own budget
+    timeout = httpx.Timeout(float(os.environ.get("LLM_CHAT_TIMEOUT", "90")), connect=10.0)
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            res = await client.post(cfg["url"], headers=headers, json=payload)
+            if res.status_code != 200:
+                raise LLMError(
+                    f"{cfg['provider']} returned HTTP {res.status_code}",
+                    status=res.status_code,
+                    body=res.text[:400],
+                )
+            data = res.json()
+    except httpx.HTTPError as exc:
+        raise LLMError(f"{cfg['provider']} unreachable: {type(exc).__name__}: {exc}") from exc
+
+    choices = data.get("choices") or []
+    text = ((choices[0].get("message") or {}).get("content") or "").strip() if choices else ""
+    if not text:
+        raise LLMError(f"{cfg['provider']} returned no content")
+    return text
+
+
 async def smoke_test() -> Dict:
     """
     One cheap live call, for `python -m agent.llm` on demo morning.
