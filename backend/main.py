@@ -16,7 +16,9 @@ from demo_data import MEALS, MEAL_BY_ID, find_meal, MEAL_NAMES
 from agent import llm as agent_llm
 from agent.personas import roster
 from agent.pipeline import run_pipeline
-from foodoscope_client import FoodoscopeError, get_foodoscope
+from foodoscope_client import FoodoscopeError, _load_dotenv, get_foodoscope
+
+_load_dotenv()  # repo-root .env → DEEPSEEK_*, FOODOSCOPE_*, etc.
 from foodoscope_service import (
     connection_links,
     flavor_pairings,

@@ -14,11 +14,13 @@ words the reason. Two rules this module exists to enforce:
      the status and the response body, and room.py puts it on the wire.
 
 Env (all optional):
+  COMMANDCODE_API_KEY   COMMANDCODE_BASE_URL (default https://api.commandcode.ai/provider/v1)
+                        COMMANDCODE_MODEL    (default deepseek/deepseek-v4-flash)
   DEEPSEEK_API_KEY      DEEPSEEK_BASE_URL (default https://api.deepseek.com)
                         DEEPSEEK_MODEL    (default deepseek-chat)
   OPENROUTER_API_KEY    OPENROUTER_BASE_URL (default https://openrouter.ai/api/v1)
                         OPENROUTER_MODEL  (default deepseek/deepseek-chat-v3.1)
-  LLM_PROVIDER = deepseek | openrouter   — force a provider
+  LLM_PROVIDER = commandcode | deepseek | openrouter   — force a provider
   LLM_TIMEOUT  = seconds                 — default 30
 """
 
@@ -27,6 +29,13 @@ import os
 from typing import AsyncIterator, Dict, List, Optional
 
 import httpx
+
+try:
+    from foodoscope_client import _load_dotenv
+
+    _load_dotenv()
+except ImportError:
+    pass
 
 
 class LLMError(Exception):
@@ -48,6 +57,18 @@ class LLMError(Exception):
 
 def _candidates() -> List[Dict]:
     out = []
+    cmd_key = os.environ.get("COMMANDCODE_API_KEY") or os.environ.get("CMD_API_KEY")
+    if cmd_key:
+        base = os.environ.get(
+            "COMMANDCODE_BASE_URL", "https://api.commandcode.ai/provider/v1"
+        ).rstrip("/")
+        out.append({
+            "provider": "commandcode",
+            "url": f"{base}/chat/completions",
+            "key": cmd_key.strip(),
+            "model": os.environ.get("COMMANDCODE_MODEL", "deepseek/deepseek-v4-flash"),
+            "extra_headers": {},
+        })
     if os.environ.get("DEEPSEEK_API_KEY"):
         base = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
         out.append({
@@ -73,8 +94,9 @@ def _candidates() -> List[Dict]:
     forced = (os.environ.get("LLM_PROVIDER") or "").strip().lower()
     if forced:
         out = [c for c in out if c["provider"] == forced]
+    default_tokens = "200" if any(c["provider"] == "commandcode" for c in out) else "90"
     for c in out:
-        c["max_tokens"] = int(os.environ.get("LLM_MAX_TOKENS", "90"))
+        c["max_tokens"] = int(os.environ.get("LLM_MAX_TOKENS", default_tokens))
     return out
 
 
@@ -176,9 +198,10 @@ async def stream_reason(
                     choices = obj.get("choices") or []
                     if not choices:
                         continue
-                    delta = (choices[0].get("delta") or {}).get("content")
-                    if delta:
-                        yield delta
+                    delta_obj = choices[0].get("delta") or {}
+                    piece = delta_obj.get("content") or delta_obj.get("reasoning_content")
+                    if piece:
+                        yield piece
     except httpx.HTTPError as exc:
         raise LLMError(f"{cfg['provider']} unreachable: {type(exc).__name__}: {exc}") from exc
 
