@@ -94,7 +94,10 @@ def _candidates() -> List[Dict]:
     forced = (os.environ.get("LLM_PROVIDER") or "").strip().lower()
     if forced:
         out = [c for c in out if c["provider"] == forced]
-    default_tokens = "200" if any(c["provider"] == "commandcode" for c in out) else "90"
+    # a reasoning model spends part of the budget thinking before it speaks, so
+    # commandcode needs a bigger allowance than a plain chat model or the answer
+    # gets truncated away entirely (see the no-content guard in stream_reason)
+    default_tokens = "600" if any(c["provider"] == "commandcode" for c in out) else "90"
     for c in out:
         c["max_tokens"] = int(os.environ.get("LLM_MAX_TOKENS", default_tokens))
     return out
@@ -173,6 +176,9 @@ async def stream_reason(
     headers.update(cfg["extra_headers"])
     timeout = httpx.Timeout(float(os.environ.get("LLM_TIMEOUT", "30")), connect=10.0)
 
+    saw_content = False
+    reasoning_chars = 0
+
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             async with client.stream("POST", cfg["url"], headers=headers, json=payload) as res:
@@ -199,9 +205,28 @@ async def stream_reason(
                     if not choices:
                         continue
                     delta_obj = choices[0].get("delta") or {}
-                    piece = delta_obj.get("content") or delta_obj.get("reasoning_content")
+                    piece = delta_obj.get("content")
                     if piece:
+                        saw_content = True
                         yield piece
+                    else:
+                        # Reasoning models stream their scratchpad in
+                        # reasoning_content ahead of the answer. Never let it on the
+                        # wire: it turns every agent line into an echo of its own
+                        # instructions. It is only counted, to explain a starvation.
+                        think = delta_obj.get("reasoning_content")
+                        if think:
+                            reasoning_chars += len(think)
+                if not saw_content:
+                    # No content at all: the scratchpad ate the whole budget, or the
+                    # provider speaks reasoning-only. Falling back to template text
+                    # is honest; printing the scratchpad is not. loop.py reports this
+                    # on the wire, so a truncated agent is visible, not silent.
+                    raise LLMError(
+                        f"{cfg['provider']} streamed no content after "
+                        f"{reasoning_chars} chars of reasoning (max_tokens="
+                        f"{cfg['max_tokens']}) — using the template voice"
+                    )
     except httpx.HTTPError as exc:
         raise LLMError(f"{cfg['provider']} unreachable: {type(exc).__name__}: {exc}") from exc
 
