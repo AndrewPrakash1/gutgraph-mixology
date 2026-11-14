@@ -14,6 +14,9 @@
   <!-- External Stylesheet -->
   <link rel="stylesheet" href="styles.css" />
 
+  <!-- Agent Room (in-site full-screen parliament chat) -->
+  <link rel="stylesheet" href="agent-room.css" />
+
   <!-- Three.js for Real-Time 3D WebGL Beverage Cans -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -406,6 +409,14 @@
 
         <div class="mt-6 p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 max-w-2xl mx-auto flex items-center justify-center gap-2.5 text-xs text-white/70">
           <span><strong>Educational Simulation Only:</strong> These agents model dietary pattern heuristics based on peer-reviewed literature. GutGraph does not measure in-vivo gut microbiota or diagnose medical conditions.</span>
+        </div>
+
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button type="button" onclick="openAgentRoom()" class="flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#FFD52A] hover:bg-[#ffe36e] active:bg-[#e6b800] text-[#211A2A] font-extrabold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg hover:scale-105 cursor-pointer">
+            <span>Open the full Agent Room</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+          <span class="text-[11px] font-bold uppercase tracking-widest text-white/50">Live parliament &middot; streamed votes</span>
         </div>
       </div>
 
