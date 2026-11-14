@@ -3,18 +3,28 @@ GutGraph × Mixology — FastAPI Backend
 """
 
 import json
+import re
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import Any, List, Dict
 
 from gut_engine import compute_gut_score
 from demo_data import MEALS, MEAL_BY_ID, find_meal, MEAL_NAMES
 from agent import llm as agent_llm
 from agent.personas import roster
 from agent.pipeline import run_pipeline
+from foodoscope_client import FoodoscopeError, get_foodoscope
+from foodoscope_service import (
+    connection_links,
+    flavor_pairings,
+    normalize_pairings,
+    recipe_by_title,
+)
+
+ALLOWED_FOODOSCOPE = re.compile(r"^(recipe2-api|flavordb|cocktaildb)/")
 
 app = FastAPI(title="GutGraph Mixology", version="0.1.0")
 
@@ -102,7 +112,7 @@ def analyze_meal_by_id(meal_id: str):
     """Direct lookup by meal ID (for the dropdown)."""
     meal = MEAL_BY_ID.get(meal_id)
     if not meal:
-        return {"error": "Meal not found"}, 404
+        raise HTTPException(status_code=404, detail="Meal not found")
 
     score, gaps, metrics = compute_gut_score(meal["ingredients"])
     return {
@@ -119,13 +129,63 @@ def analyze_meal_by_id(meal_id: str):
     }
 
 
+@app.get("/foodoscope/status")
+def foodoscope_status():
+    fs = get_foodoscope()
+    return {
+        "configured": fs is not None,
+        "base_url": fs.base_url if fs else None,
+        "cache": str(fs.cache) if fs and fs.cache else None,
+    }
+
+
+@app.get("/recipe/search")
+def search_recipe(title: str, limit: int = 5):
+    """RecipeDB by title (cached). Falls back to message when no campus key."""
+    hits = recipe_by_title(title, limit=limit)
+    if hits is None:
+        raise HTTPException(
+            status_code=503,
+            detail="FoodoScope unavailable. Set FOODOSCOPE_API_KEY in repo-root .env on campus network.",
+        )
+    return {"title": title, "results": hits}
+
+
+@app.api_route("/api/{full_path:path}", methods=["GET", "POST"])
+async def foodoscope_proxy(request: Request, full_path: str):
+    """
+    Browser-safe proxy to the FoodoScope gateway (STARTER_GUIDE §3).
+    Frontend calls http://localhost:8000/api/recipe2-api/... — key stays server-side.
+    """
+    if not ALLOWED_FOODOSCOPE.match(full_path):
+        raise HTTPException(
+            status_code=404,
+            detail="Use /api/recipe2-api/..., /api/flavordb/..., or /api/cocktaildb/...",
+        )
+    fs = get_foodoscope()
+    if not fs:
+        raise HTTPException(status_code=503, detail="FOODOSCOPE_API_KEY not configured")
+    path = "/" + full_path
+    params = dict(request.query_params)
+    try:
+        if request.method == "POST":
+            raw = await request.body()
+            body: Any = json.loads(raw.decode()) if raw else None
+            data = fs.post(path, body=body, **params)
+        else:
+            data = fs.get(path, **params)
+    except FoodoscopeError as e:
+        return JSONResponse(status_code=e.status, content={"error": e.message})
+    return data
+
+
 @app.get("/pair/{ingredient}")
 def pair_ingredient(ingredient: str):
     """
     Return pairing suggestions for an ingredient.
-    In production this calls FlavorDB /food/by-alias.
+    Live: FlavorDB ``/flavordb/food/by-alias`` when key is set; else demo table.
     """
-    # Hardcoded demo pairs for the hackathon
+    # Hardcoded demo pairs for offline / pre-campus
     PAIRS = {
         "turmeric": [
             {"name": "ginger", "similarity": 0.385, "shared_molecules": 89},
@@ -153,9 +213,18 @@ def pair_ingredient(ingredient: str):
             {"name": "cinnamon", "similarity": 0.087, "shared_molecules": 19},
         ],
     }
+    key = ingredient.lower().strip()
+    live = normalize_pairings(flavor_pairings(key))
+    if live:
+        return {"ingredient": ingredient, "pairs": live, "source": "flavordb"}
+    links = connection_links(key)
+    from_links = normalize_pairings(links)
+    if from_links:
+        return {"ingredient": ingredient, "pairs": from_links, "source": "recipe2_connections"}
     return {
         "ingredient": ingredient,
-        "pairs": PAIRS.get(ingredient.lower(), []),
+        "pairs": PAIRS.get(key, []),
+        "source": "demo",
     }
 
 
