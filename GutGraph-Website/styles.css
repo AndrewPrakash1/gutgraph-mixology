@@ -60,6 +60,21 @@ body {
   will-change: transform;
 }
 
+/* Tailwind `hidden` was not in the compiled sheet, so overlays painted over the whole page. */
+.hidden { display: none !important; }
+
+/* Closed until JS opens them */
+#cart-backdrop,
+#product-modal-backdrop,
+#recipe-modal-backdrop {
+  display: none;
+}
+#cart-backdrop.is-open,
+#product-modal-backdrop.is-open,
+#recipe-modal-backdrop.is-open {
+  display: flex;
+}
+
 /* Modal Backdrop */
 .modal-backdrop {
   background: rgba(12, 3, 28, 0.85);

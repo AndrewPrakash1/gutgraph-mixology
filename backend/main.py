@@ -4,10 +4,12 @@ GutGraph × Mixology — FastAPI Backend
 
 import json
 import re
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Any, List, Dict
 
@@ -27,6 +29,8 @@ from foodoscope_service import (
 )
 
 ALLOWED_FOODOSCOPE = re.compile(r"^(recipe2-api|flavordb|cocktaildb)/")
+
+SITE_DIR = Path(__file__).resolve().parents[1] / "GutGraph-Website"
 
 app = FastAPI(title="GutGraph Mixology", version="0.1.0")
 
@@ -74,7 +78,8 @@ class PairResponse(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "GutGraph Mixology API", "version": "0.1.0"}
+    """Flagship GutGraph site (not the temporary frontend/ demo)."""
+    return FileResponse(SITE_DIR / "index.html")
 
 
 @app.get("/meals")
@@ -266,6 +271,13 @@ async def chat_stream(req: ChatRequest):
 @app.get("/health")
 def health():
     return {"status": "ok", "meals_loaded": len(MEALS)}
+
+
+app.mount(
+    "/",
+    StaticFiles(directory=str(SITE_DIR), html=True),
+    name="gutgraph-site",
+)
 
 
 if __name__ == "__main__":

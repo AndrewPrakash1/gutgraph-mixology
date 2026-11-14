@@ -584,10 +584,12 @@
       const backdrop = document.getElementById("cart-backdrop");
       if (open) {
         backdrop.classList.remove("hidden");
+        backdrop.classList.add("is-open");
         drawer.classList.add("open");
       } else {
         drawer.classList.remove("open");
-        setTimeout(() => backdrop.classList.add("hidden"), 300);
+        backdrop.classList.remove("is-open");
+        backdrop.classList.add("hidden");
       }
     }
 
@@ -772,12 +774,12 @@
       `;
 
       document.getElementById("product-modal-backdrop").classList.remove("hidden");
-      document.getElementById("product-modal-backdrop").classList.add("flex");
+      document.getElementById("product-modal-backdrop").classList.add("is-open", "flex");
     }
 
     function closeProductModal() {
       document.getElementById("product-modal-backdrop").classList.add("hidden");
-      document.getElementById("product-modal-backdrop").classList.remove("flex");
+      document.getElementById("product-modal-backdrop").classList.remove("is-open", "flex");
     }
 
     // ==========================================
@@ -888,12 +890,12 @@
       `;
 
       document.getElementById("recipe-modal-backdrop").classList.remove("hidden");
-      document.getElementById("recipe-modal-backdrop").classList.add("flex");
+      document.getElementById("recipe-modal-backdrop").classList.add("is-open", "flex");
     }
 
     function closeRecipeModal() {
       document.getElementById("recipe-modal-backdrop").classList.add("hidden");
-      document.getElementById("recipe-modal-backdrop").classList.remove("flex");
+      document.getElementById("recipe-modal-backdrop").classList.remove("is-open", "flex");
     }
 
     // ==========================================
@@ -950,38 +952,106 @@
       }
     }
 
-    function handleMealSubmit(e) {
+    const API_BASE = (location.port === "8000" || location.hostname === "127.0.0.1" && location.port === "8000")
+      ? ""
+      : "http://localhost:8000";
+
+    function voteStyle(score) {
+      if (score >= 70) return { vote: "THRIVING", bg: "bg-[#70B96B]", text: "text-[#211A2A]" };
+      if (score >= 40) return { vote: "ADEQUATE", bg: "bg-[#E9BD48]", text: "text-[#211A2A]" };
+      if (score >= 20) return { vote: "DEFICIT", bg: "bg-[#FF9D36]", text: "text-[#211A2A]" };
+      return { vote: "URGENT GAP", bg: "bg-[#A92348]", text: "text-white" };
+    }
+
+    function applyLiveAnalysis(data, typed) {
+      const gaps = (data.gaps || []).map(g => g.toLowerCase());
+      const has = (needle) => gaps.some(g => g.includes(needle));
+      const fibre = voteStyle(has("fibre") || has("fiber") ? 12 : 78);
+      const ferment = voteStyle(has("ferment") || has("probiotic") ? 8 : 82);
+      const sugar = voteStyle(has("sugar") ? 16 : 86);
+      const spice = voteStyle(has("spice") ? 22 : 74);
+      const drink = data.drink || {};
+      const product = PRODUCTS.find(p => (drink.name || "").toLowerCase().includes(p.name.split(" ")[0].toLowerCase()))
+        || currentMeal.recommendedProduct
+        || PRODUCTS[1];
+
+      currentMeal = {
+        id: (data.meal && data.meal.id) || "live",
+        name: (data.meal && data.meal.name) || typed,
+        category: "Live GutGraph engine",
+        image: currentMeal.image,
+        shortDesc: ((data.meal && data.meal.ingredients) || []).map(i => i.name || i).join(", ") || typed,
+        calories: Math.round((10 - (data.gut_score || 0)) * 80 + 400),
+        protein: "—",
+        carbs: "—",
+        fiber: has("fibre") || has("fiber") ? "Low (engine)" : "Adequate (engine)",
+        processedScore: Math.max(0, Math.round((10 - (data.gut_score || 0)) * 10)),
+        recommendedProduct: product,
+        freshAlt: drink.prep || currentMeal.freshAlt,
+        rationale: drink.explanation || `Gut score ${data.gut_score}/10. Gaps: ${(data.gaps || []).join(", ") || "none"}.`,
+        scores: [
+          { id: "fiber", name: "Fibre Forager", score: fibre.vote === "URGENT GAP" ? 12 : fibre.vote === "THRIVING" ? 78 : 48, ...fibre, msg: has("fibre") || has("fiber") ? "Engine flagged low fibre." : "Fibre looks adequate for this plate." },
+          { id: "ferment", name: "Ferment Scout", score: ferment.vote === "URGENT GAP" || ferment.vote === "DEFICIT" ? 10 : 82, ...ferment, msg: has("ferment") || has("probiotic") ? "No fermented food or live cultures detected." : "A ferment or culture is on the plate." },
+          { id: "sugar", name: "Sugar Sentry", score: sugar.vote === "URGENT GAP" ? 16 : 86, ...sugar, msg: has("sugar") ? "Too much sugar for this meal." : "Sugar load stays inside the rule." },
+          { id: "diversity", name: "Diversity Botanist", score: spice.vote === "DEFICIT" || spice.vote === "URGENT GAP" ? 18 : 74, ...spice, msg: has("spice") ? "Spice families are too narrow." : "Spice diversity clears the bar." }
+        ]
+      };
+      renderMealLab();
+      const rec = document.getElementById("recommendation");
+      if (rec) rec.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function fallbackMeal(val) {
+      if (val.includes("noodle") || val.includes("coke") || val.includes("maggi") || val.includes("pizza") || val.includes("burger")) {
+        selectMeal("noodles-coke");
+      } else if (val.includes("paneer") || val.includes("rice") || val.includes("biryani") || val.includes("curry") || val.includes("rajma")) {
+        selectMeal("paneer-rice");
+      } else if (val.includes("idli") || val.includes("thali") || val.includes("dal")) {
+        selectMeal("balanced-thali");
+      } else {
+        selectMeal("noodles-coke");
+      }
+    }
+
+    async function handleMealSubmit(e) {
       e.preventDefault();
-      const val = document.getElementById("meal-input").value.trim().toLowerCase();
-      if (!val) return;
+      const raw = document.getElementById("meal-input").value.trim();
+      if (!raw) return;
+      const val = raw.toLowerCase();
 
       const progressBox = document.getElementById("meal-analyzing-progress");
       const progressBar = document.getElementById("meal-progress-bar");
       const progressText = document.getElementById("meal-progress-text");
 
       progressBox.classList.remove("hidden");
-      progressBar.style.width = "25%";
-      progressText.innerText = "25%";
+      progressBox.classList.add("is-open");
+      progressBar.style.width = "35%";
+      progressText.innerText = "Asking the gut engine…";
 
-      setTimeout(() => {
-        progressBar.style.width = "65%";
-        progressText.innerText = "65%";
-      }, 350);
-
-      setTimeout(() => {
+      try {
+        const res = await fetch(API_BASE + "/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meal_text: raw })
+        });
+        if (!res.ok) throw new Error("analyze " + res.status);
+        const data = await res.json();
         progressBar.style.width = "100%";
-        progressText.innerText = "100%";
+        progressText.innerText = "Gut score " + data.gut_score + "/10";
         setTimeout(() => {
           progressBox.classList.add("hidden");
-          if (val.includes("noodle") || val.includes("coke") || val.includes("maggi") || val.includes("pizza") || val.includes("burger")) {
-            selectMeal("noodles-coke");
-          } else if (val.includes("paneer") || val.includes("rice") || val.includes("biryani") || val.includes("curry")) {
-            selectMeal("paneer-rice");
-          } else {
-            selectMeal("balanced-thali");
-          }
-        }, 200);
-      }, 700);
+          progressBox.classList.remove("is-open");
+          applyLiveAnalysis(data, raw);
+        }, 280);
+      } catch (err) {
+        progressBar.style.width = "100%";
+        progressText.innerText = "Engine offline — using the on-page scenario";
+        setTimeout(() => {
+          progressBox.classList.add("hidden");
+          progressBox.classList.remove("is-open");
+          fallbackMeal(val);
+        }, 400);
+      }
     }
 
     // ==========================================
