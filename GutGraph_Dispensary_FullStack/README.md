@@ -29,7 +29,7 @@ GutGraph_Dispensary_FullStack/
 ### 1. Launch the Server
 In your terminal, run:
 ```bash
-cd ~/Desktop/GutGraph_Dispensary_FullStack
+cd path/to/gutgraph-mixology/GutGraph_Dispensary_FullStack
 chmod +x start.sh test.sh
 ./start.sh
 ```
@@ -108,6 +108,7 @@ To run the automated security and concurrency test suite:
 | `/api/chat` | `POST` | LLM deliberation engine incorporating health profile |
 | `/api/chat/history` | `GET` | Retrieves persistent chat turns for logged-in user |
 | `/api/checkout` | `POST` | Calculates Indian GST, packaging fees, archives order |
+| `/api/analyze-meal` | `POST` | Meal Lab — 5 gut-agent scores + can match |
 
 ---
 

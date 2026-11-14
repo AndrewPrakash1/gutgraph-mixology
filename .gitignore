@@ -3,4 +3,4 @@ __pycache__/
 *.pyc
 .env
 .foodoscope_cache/
-backend/gutgraph.db
+GutGraph_Dispensary_FullStack/backend/gutgraph.db

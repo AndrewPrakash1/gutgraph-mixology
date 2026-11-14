@@ -32,6 +32,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from mixology_bridge import analyze_meal_text
+
 # Base Directory Paths
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
@@ -251,6 +253,11 @@ class CheckoutItem(BaseModel):
     name: str
     qty: int
     price: float = 120.0
+
+class MealAnalyzeRequest(BaseModel):
+    meal_text: str = Field(..., min_length=1, max_length=2000)
+    demo_mode: bool = True
+
 
 class CheckoutRequest(BaseModel):
     items: List[CheckoutItem]
@@ -657,6 +664,13 @@ def process_chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         "long_term_memory": bool(user_id),
         "user": user_name
     }
+
+# ----------------- Meal Lab (5-agent gut council) -----------------
+@app.post("/api/analyze-meal")
+def api_analyze_meal(req: MealAnalyzeRequest):
+    """Powers the Meal Lab in the Dispensary SPA (server-side agent cards)."""
+    return analyze_meal_text(req.meal_text)
+
 
 # ----------------- Checkout & Bill Generation API -----------------
 @app.post("/api/checkout")
