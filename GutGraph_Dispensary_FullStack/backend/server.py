@@ -28,11 +28,19 @@ from contextlib import contextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Depends, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from mixology_bridge import analyze_meal_text
+from env_loader import load_dotenv
+from demo_data import MEALS
+from agent import llm as agent_llm
+from agent.personas import roster
+from agent.pipeline import run_pipeline
+import foodoscope
+
+load_dotenv()
 
 # Base Directory Paths
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -257,6 +265,10 @@ class CheckoutItem(BaseModel):
 class MealAnalyzeRequest(BaseModel):
     meal_text: str = Field(..., min_length=1, max_length=2000)
     demo_mode: bool = True
+
+
+class ParliamentChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=4000)
 
 
 class CheckoutRequest(BaseModel):
@@ -565,8 +577,60 @@ def get_chat_history(user_id: int = Depends(require_current_user)):
         ).fetchall()
         return [dict(r) for r in rows]
 
+
+# Per-agent personas for the side chat: routing stays, the words come from the LLM.
+_PERSONA = [
+    ("rough", "ROUGH · Fibre Forager", "prebiotic fibre, short-chain fatty acids and daily gut motility",
+     ["fibre", "fiber", "dal", "salad", "oats", "bloat", "gas", "stool", "constipat"],
+     "Inulin, beta-glucans, and resistant starches feed Bacteroides to synthesize short-chain fatty acids (SCFAs)."),
+    ("spike", "SPIKE · Sugar Sentry", "blood-sugar response and zero-sugar drinks",
+     ["sugar", "coke", "cola", "sweet", "spike", "glucose", "insulin", "diabetes", "energy"],
+     "Free liquid sugars cause sharp glycemic excursions. GutGraph cans are brewed with zero cane sugar and under 35 kcal."),
+    ("rack", "RACK · Spice Parliament", "spices, polyphenols and reflux-friendly choices",
+     ["spice", "turmeric", "pepper", "ginger", "curcumin", "reflux", "acidity", "gerd", "burn"],
+     "Piperine in Tellicherry black pepper enhances curcumin bioavailability by up to 2000%."),
+    ("dahi", "DAHI · Ferment Scout", "live cultures, ferments and dairy sensitivity",
+     ["curd", "chaas", "dahi", "probiotic", "kefir", "ferment", "lactose", "milk", "dairy"],
+     "Live wild strains colonize the mucosal lumen, lowering local pH to deter pathogenic blooms."),
+]
+_DEFAULT_PERSONA = (
+    "kavach", "KAVACH · Lining Guard",
+    "the gut lining, polyphenols and overall gut comfort",
+    "Maintaining mucosal tight-junction integrity requires plant polyphenols and low endotoxin stress.",
+)
+
+
+def _pick_persona(low: str):
+    for bot_id, author, specialty, keys, fallback in _PERSONA:
+        if any(k in low for k in keys):
+            return {"bot_id": bot_id, "author": author, "specialty": specialty, "fallback": fallback}
+    return {"bot_id": _DEFAULT_PERSONA[0], "author": _DEFAULT_PERSONA[1],
+            "specialty": _DEFAULT_PERSONA[2], "fallback": _DEFAULT_PERSONA[3]}
+
+
+async def _llm_reply(author, specialty, profile_context, user_name, message, fallback):
+    """Word the side-chat answer with the LLM in the chosen agent's voice; fall back
+    to the canned line if the model is unreachable so the drawer never goes silent."""
+    system = (
+        f"You are {author}, one of GutGraph's five gut-council agents. Your specialty is "
+        f"{specialty}. Answer the user's question about food, gut health or which GutGraph "
+        f"botanical drink pairs with their meal. Be short (under 80 words), specific and "
+        f"friendly, in character. Never diagnose or prescribe medicine; if it sounds medical, "
+        f"say you are not a doctor and suggest seeing one."
+    )
+    if profile_context:
+        system += f" The user's saved health profile: {profile_context}. Use it silently, never repeat it back unless asked."
+    try:
+        return await agent_llm.complete(
+            [{"role": "system", "content": system}, {"role": "user", "content": message}],
+            max_tokens=320,
+        )
+    except agent_llm.LLMError:
+        return fallback
+
+
 @app.post("/api/chat")
-def process_chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
+async def process_chat(req: ChatRequest, authorization: str = Header(None)):
     user_id = get_current_user_id(authorization)
     message = req.message.strip()
     if not message:
@@ -595,55 +659,19 @@ def process_chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
                     profile_context = " | ".join(parts)
 
     low = message.lower()
-    selected_bot = "dahi"
-    author = "DAHI · Ferment Scout"
-    reply = ""
 
     if any(q in low for q in ["who am i", "my profile", "what do you know", "my memory", "remember me"]):
+        selected_bot, author = "kavach", "KAVACH · Memory Guardian"
         if user_id and profile_context:
-            selected_bot = "kavach"
-            author = "KAVACH · Memory Guardian"
             reply = f"Hello @{user_name}! In your synchronized Long-Term Memory, I have: {profile_context}. All 5 council agents check this before every answer!"
         elif user_id:
-            selected_bot = "kavach"
-            author = "KAVACH · Memory Guardian"
             reply = f"Hello @{user_name}! Your account is active, but your health profile is blank. Head to the Account menu to add medical history and allergies!"
         else:
-            selected_bot = "kavach"
-            author = "KAVACH · Memory Guardian"
             reply = "You are currently browsing as a Guest! Sign up or log in from the top-right button to enable Long-Term Memory."
     else:
-        if any(w in low for w in ["fibre", "fiber", "dal", "salad", "oats", "bloat", "gas", "stool", "constipat"]):
-            selected_bot = "rough"
-            author = "ROUGH · Fibre Forager"
-            reply = "Inulin, beta-glucans, and resistant starches feed Bacteroides to synthesize short-chain fatty acids (SCFAs)."
-            if "bloat" in profile_context.lower() or "ibs" in profile_context.lower():
-                reply += " Note: For your noted bloating/IBS profile, we recommend soluble prebiotic fibres introduced gradually rather than abrupt coarse bran!"
-        elif any(w in low for w in ["sugar", "coke", "cola", "sweet", "spike", "glucose", "insulin", "diabetes", "energy"]):
-            selected_bot = "spike"
-            author = "SPIKE · Sugar Sentry"
-            reply = "Free liquid sugars cause sharp glycemic excursions. GutGraph cans are brewed with zero cane sugar and under 35 kcal."
-            if "diabetes" in profile_context.lower() or "sugar" in profile_context.lower():
-                reply += f" Prioritizing low glycemic botanical blends specifically for @{user_name}'s profile."
-        elif any(w in low for w in ["spice", "turmeric", "pepper", "ginger", "curcumin", "reflux", "acidity", "gerd", "burn"]):
-            selected_bot = "rack"
-            author = "RACK · Spice Parliament"
-            reply = "Piperine in Tellicherry black pepper enhances curcumin bioavailability by up to 2000%."
-            if "reflux" in profile_context.lower() or "gerd" in profile_context.lower() or "acidity" in profile_context.lower():
-                reply += " Alert: Given your reported Acid Reflux / GERD history, cooling Mint Condition or gentle Golden Hour is preferred over aggressive hot spices."
-        elif any(w in low for w in ["curd", "chaas", "dahi", "probiotic", "kefir", "ferment", "lactose", "milk", "dairy"]):
-            selected_bot = "dahi"
-            author = "DAHI · Ferment Scout"
-            if "lactose" in profile_context.lower() or "dairy" in profile_context.lower():
-                reply = "Warning: Desi Cool contains active dairy culture! Since your profile lists Lactose/Dairy sensitivity, choose our 100% dairy-free plant ferment cans like Sunkissed or Ruby Rush instead."
-            else:
-                reply = "Live wild strains colonize the mucosal lumen, lowering local pH to deter pathogenic blooms."
-        else:
-            selected_bot = "kavach"
-            author = "KAVACH · Lining Guard"
-            reply = "Maintaining mucosal tight-junction integrity requires plant polyphenols and low endotoxin stress."
-            if profile_context:
-                reply += f" Active context for @{user_name}: {profile_context}."
+        persona = _pick_persona(low)
+        selected_bot, author = persona["bot_id"], persona["author"]
+        reply = await _llm_reply(author, persona["specialty"], profile_context, user_name, message, persona["fallback"])
 
     if user_id:
         with get_db() as conn:
@@ -670,6 +698,84 @@ def process_chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
 def api_analyze_meal(req: MealAnalyzeRequest):
     """Powers the Meal Lab in the Dispensary SPA (server-side agent cards)."""
     return analyze_meal_text(req.meal_text)
+
+
+# ----------------- FoodoScope (RecipeDB / FlavorDB) -----------------
+_DEMO_PAIRS = {
+    "turmeric": [
+        {"name": "mango", "similarity": 0.388, "shared_molecules": 103},
+        {"name": "ginger", "similarity": 0.385, "shared_molecules": 89},
+        {"name": "black pepper", "similarity": 0.210, "shared_molecules": 45},
+    ],
+    "ginger": [
+        {"name": "turmeric", "similarity": 0.385, "shared_molecules": 89},
+        {"name": "lemon", "similarity": 0.156, "shared_molecules": 34},
+    ],
+    "mango": [{"name": "turmeric", "similarity": 0.388, "shared_molecules": 103}],
+}
+
+
+@app.get("/foodoscope/status")
+def foodoscope_status():
+    return {
+        "configured": foodoscope.enabled(),
+        "base_url": foodoscope._base() if foodoscope.enabled() else None,
+        "reachable": foodoscope.reachable(),
+    }
+
+
+@app.get("/foodoscope/pair")
+def foodoscope_pair(ingredient: str):
+    """FlavorDB pairing for an ingredient; demo table when off-campus."""
+    key = ingredient.strip().lower()
+    live = foodoscope.pairings(key)
+    if live:
+        return {"ingredient": ingredient, "source": "flavordb", "pairs": live}
+    return {"ingredient": ingredient, "source": "demo", "pairs": _DEMO_PAIRS.get(key, [])}
+
+
+@app.get("/foodoscope/recipe-search")
+def foodoscope_recipe(title: str, limit: int = 5):
+    hits = foodoscope.recipe_search(title, limit=limit)
+    if hits is None:
+        raise HTTPException(
+            status_code=503,
+            detail="FoodoScope unreachable (campus network only) or no API key configured.",
+        )
+    return {"title": title, "results": hits}
+
+
+# ----------------- Agent Parliament (Grok-style SSE) -----------------
+@app.get("/agents")
+def list_parliament_agents():
+    info = agent_llm.provider_info()
+    return {
+        "mode": info["mode"],
+        "provider": info["provider"],
+        "model": info["model"],
+        "agents": roster(),
+    }
+
+
+@app.get("/meals")
+def list_demo_meals():
+    return [
+        {"id": m["id"], "name": m["name"], "emoji": m["emoji"]}
+        for m in MEALS
+    ]
+
+
+@app.post("/chat/stream")
+async def parliament_chat_stream(req: ParliamentChatRequest):
+    async def event_source():
+        async for ev in run_pipeline(req.message):
+            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ----------------- Checkout & Bill Generation API -----------------
@@ -720,6 +826,23 @@ def checkout(req: CheckoutRequest, authorization: Optional[str] = Header(None)):
 # ----------------- Static File & Asset Routes -----------------
 if os.path.exists(ASSETS_DIR):
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+
+
+@app.get("/agent-room.css")
+def serve_agent_room_css():
+    path = os.path.join(FRONTEND_DIR, "agent-room.css")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/css")
+    raise HTTPException(status_code=404, detail="agent-room.css missing")
+
+
+@app.get("/agent-room.js")
+def serve_agent_room_js():
+    path = os.path.join(FRONTEND_DIR, "agent-room.js")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="agent-room.js missing")
+
 
 @app.get("/")
 def serve_index():

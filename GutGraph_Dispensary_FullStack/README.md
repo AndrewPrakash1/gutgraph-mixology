@@ -109,6 +109,9 @@ To run the automated security and concurrency test suite:
 | `/api/chat/history` | `GET` | Retrieves persistent chat turns for logged-in user |
 | `/api/checkout` | `POST` | Calculates Indian GST, packaging fees, archives order |
 | `/api/analyze-meal` | `POST` | Meal Lab — 5 gut-agent scores + can match |
+| `/agents` | `GET` | Parliament roster + LLM mode badge |
+| `/meals` | `GET` | Demo meal chips for parliament |
+| `/chat/stream` | `POST` | Grok-style agent parliament (SSE) |
 
 ---
 

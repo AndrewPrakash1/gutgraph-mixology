@@ -6,6 +6,7 @@
 <title>GUTGRAPH</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat+Brush&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800&display=swap">
+<link rel="stylesheet" href="agent-room.css">
 <style>
 /* Layout: one persistent WebGL can docks left or right of every act. The page ground flips plum / paper / yolk (violet and yellow are complements), doodle girls and stickers sit on top, six flavour colours are used only on cans and cards. */
 @property --bg { syntax: '<color>'; inherits: true; initial-value: #170052; }
@@ -1549,6 +1550,10 @@ body:not([data-ground="paper"]):not([data-ground="yolk"]) .btn.solid { border-co
       <h2>What's on your <span class="sq">plate?</span></h2>
       <!-- UPGRADE 1: Updated copy reflecting 5 specific agents -->
       <p class="lead">Type tonight's dinner. Five rule-based gut agents score it, then the can prints your result.</p>
+      <div class="row" style="flex-wrap:wrap;gap:0.65rem;margin:0.5rem 0 1rem;align-items:center">
+        <button type="button" class="btn solid" onclick="openAgentRoom()">Open Agent Parliament</button>
+        <span style="font-family:var(--f-mono);font-size:0.72rem;opacity:0.85;text-transform:uppercase;letter-spacing:0.06em">Grok-style live stream · votes · pairing</span>
+      </div>
       <form class="mealform" id="meal-form">
         <label class="sr" for="meal-input">Your meal</label>
         <input id="meal-input" type="text" placeholder="e.g. instant noodles + cola" value="" autocomplete="off">
@@ -1601,7 +1606,7 @@ body:not([data-ground="paper"]):not([data-ground="yolk"]) .btn.solid { border-co
       <div>
         <p class="kicker">built for Fork It 2026</p>
         <p class="lead" style="max-width:34rem">Drink the science. Ask your plate what it needs, then crack the can that answers.</p>
-        <div class="row"><button class="btn solid" type="button" data-go="meal-lab">Analyze my meal</button><button class="btn" type="button" data-go="top">Back to the top</button></div>
+        <div class="row"><button class="btn solid" type="button" data-go="meal-lab">Analyze my meal</button><button class="btn solid" type="button" onclick="openAgentRoom()">Agent Parliament</button><button class="btn" type="button" data-go="top">Back to the top</button></div>
       </div>
       <div>
         <div class="crew" id="crew" aria-hidden="true"></div>
@@ -1646,6 +1651,34 @@ body:not([data-ground="paper"]):not([data-ground="yolk"]) .btn.solid { border-co
     <button class="btn solid sm" type="submit">Send</button>
   </form>
 </aside>
+
+<section id="agent-room" aria-hidden="true" aria-label="Agent Parliament">
+  <div class="ar-top">
+    <div>
+      <h2 class="ar-title">Agent Parliament</h2>
+      <div class="ar-sub">Grok-style gut council — streamed votes, one meal at a time</div>
+    </div>
+    <span class="ar-badge" id="ar-mode">connecting…</span>
+    <div class="row">
+      <button class="ar-btn" type="button" onclick="arReset()">Clear room</button>
+      <button class="ar-btn" type="button" onclick="closeAgentRoom()">Close</button>
+    </div>
+  </div>
+  <div class="ar-body">
+    <div class="ar-rail" id="ar-rail"></div>
+    <div class="ar-main">
+      <div class="ar-thread" id="ar-thread"><div class="ar-inner" id="ar-inner"></div></div>
+      <div class="ar-compose">
+        <form class="ar-form" id="ar-form" onsubmit="arSend(event)">
+          <input id="ar-input" type="text" placeholder="Tell the parliament what you ate…" autocomplete="off">
+          <button class="ar-btn accent" type="submit" id="ar-send">Send</button>
+        </form>
+        <div class="ar-meals" id="ar-meals"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <aside id="cart" aria-label="Your stash" aria-hidden="true">
   <div class="row" style="justify-content:space-between"><h2>Your stash</h2><button class="btn sm" id="cart-close" type="button">Close</button></div>
   <ul id="cart-list"></ul>
@@ -3329,6 +3362,26 @@ body:not([data-ground="paper"]):not([data-ground="yolk"]) .btn.solid { border-co
   NODES.forEach(function (n) { var b = document.createElement('button'); b.type = 'button'; b.className = 'node'; b.style.left = pos[n.id][0] + '%'; b.style.top = pos[n.id][1] + '%'; b.style.setProperty('--c', n.c); b.setAttribute('data-id', n.id); b.innerHTML = '<i></i>' + esc(n.name); lab.appendChild(b); });
   function edgeFor(x, y) { return EDGES.filter(function (e) { return (e.a === x && e.b === y) || (e.a === y && e.b === x); })[0]; }
   var countT = null;
+  /* FoodoScope live pairing: when on campus the flavour lab pulls real FlavorDB
+     rows for the selected ingredient; off-campus it stays on the hardcoded data. */
+  var FOODO_ALIAS = { chaas: 'buttermilk', pepper: 'black pepper', lime: 'lime', spearmint: 'spearmint', kokum: 'kokum', mango: 'mango', turmeric: 'turmeric', ginger: 'ginger' };
+  function loadLivePairs(n) {
+    var live = document.getElementById('flavor-live'); if (live) live.remove();
+    var q = FOODO_ALIAS[n.id] || n.id;
+    fetch(API_BASE + '/foodoscope/pair?ingredient=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || d.source !== 'flavordb' || !d.pairs || !d.pairs.length) return;
+        var html = '<div id="flavor-live"><p style="margin:1.1rem 0 .4rem;font-family:var(--f-mono,monospace);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;opacity:.85">FlavorDB live · ' + esc(q) + '</p><ul class="tags">' +
+          d.pairs.map(function (p) {
+            return '<li>' + esc(p.name) +
+              (p.shared_molecules != null ? ' · ' + p.shared_molecules + ' shared' : '') +
+              (p.similarity != null ? ' · J=' + p.similarity : '') + '</li>';
+          }).join('') + '</ul></div>';
+        $('#pair').insertAdjacentHTML('beforeend', html);
+      })
+      .catch(function () {});
+  }
   function renderPair() {
     $$('.node').forEach(function (b) { b.setAttribute('aria-pressed', sel.indexOf(b.getAttribute('data-id')) > -1 ? 'true' : 'false'); });
     var edge = sel.length === 2 ? edgeFor(sel[0], sel[1]) : null;
@@ -3338,6 +3391,7 @@ body:not([data-ground="paper"]):not([data-ground="yolk"]) .btn.solid { border-co
     if (sel.length === 1) {
       var n = node(sel[0]), links = EDGES.filter(function (e) { return e.a === n.id || e.b === n.id; });
       p.innerHTML = '<h3>' + esc(n.name) + '</h3><p>' + esc(n.cat) + ', ' + n.n + ' catalogued molecules. ' + esc(n.note) + '</p><ul class="tags">' + n.vol.map(function (v) { return '<li>' + esc(v) + '</li>'; }).join('') + '</ul>' + (links.length ? '<p>Pairs well with (tap to compare):</p><ul class="tags">' + links.map(function (e) { var o = e.a === n.id ? e.b : e.a; return '<li class="btnish" role="button" tabindex="0" data-id="' + o + '">' + esc(node(o).name) + '</li>'; }).join('') + '</ul>' : '<p>No bridge catalogued for this one in our dataset.</p>');
+      loadLivePairs(n);
       return;
     }
     var A = node(sel[0]), B = node(sel[1]);
@@ -3659,5 +3713,6 @@ body:not([data-ground="paper"]):not([data-ground="yolk"]) .btn.solid { border-co
   try { build(); } catch (e) {} onScroll();
 })();
 </script>
+<script src="agent-room.js"></script>
 </body>
 </html>
